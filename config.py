@@ -1,0 +1,120 @@
+import configparser
+import os
+import errno
+from collections import OrderedDict
+from host import Host
+import numpy as np
+
+default_config = OrderedDict([
+    ('Epidemiology', OrderedDict([
+        ('Model', (True, "SIR", "Compartmental model to use. SECIR or SEDIR "
+                   "or a subset of one of these", str)),
+        ('EAdvRate', (False, 1.0, "E->nextState transition rate.  "
+                      "Required if E in model", float)),
+        ('CAdvRate', (False, 1.0, "C->nextState transition rate.  "
+                      "Required if C in model", float)),
+        ('DAdvRate', (False, 1.0, "D->nextState transition rate.  "
+                      "Required if D in model", float)),
+        ('IAdvRate', (False, 1.0, "I->R transition rate.  "
+                      "Required if R in model", float)),
+    ])),
+    ('Simulation', OrderedDict([
+        ('FinalTime', (True, 10.0, "Time to stop the simulation.", float)),
+    ])),
+    ('Optimisation', OrderedDict([
+        ('CacheKernel', (False, False, "Whether or not to cache the full "
+                         "kernel at the start of the simulation", bool)),
+        ('RateStructure-Infection', (False, "ratesum",
+                                     "Which rate structure to use for "
+                                     "infection events.  Options are: ratesum",
+                                     str)),
+        ('RateStructure-Advance', (False, "ratesum",
+                                   "Which rate structure to use for "
+                                   "advance events.  Options are: ratesum",
+                                   str)),
+    ])),
+])
+
+
+def write_keyfile(filename="KEYFILE.txt"):
+    with open(filename, "w") as f:
+        f.write("# KEYFILE giving all parameter options that can be specified"
+                " in the configuration file.\n# KEY* indicates that key is "
+                "optional.\n")
+        for section in default_config:
+            f.write("\n[" + section + "]\n")
+            for key in default_config[section]:
+                val = default_config[section][key]
+                if val[0] is False:
+                    f.write(key + "* = " + str(val[1]))
+                else:
+                    f.write(key + " = " + str(val[1]))
+
+                if val[2] is not None:
+                    f.write("\n  # " + val[2] + "\n")
+
+
+def write_default_config(filename="config.ini"):
+    with open(filename, "w") as f:
+        for section in default_config:
+            f.write("[" + section + "]\n")
+            for key in default_config[section]:
+                val = default_config[section][key]
+                if val[0] is True:
+                    f.write(key + " = " + str(val[1]) + "\n")
+            f.write("\n")
+
+
+def read_config_file(filename="config.ini"):
+    parser = configparser.ConfigParser()
+    if os.path.exists(filename):
+        parser.read(filename)
+    else:
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),
+                                filename)
+
+    return_dict = {}
+
+    for section in default_config:
+        if section not in parser:
+            parser.add_section(section)
+
+        for key in default_config[section]:
+            def_val = default_config[section][key]
+            if key in parser[section]:
+                if def_val[3] == bool:
+                    val = parser[section].getboolean(key)
+                    return_dict[key] = val
+                else:
+                    val = parser[section][key]
+                    return_dict[key] = def_val[3](val)
+            else:
+                if def_val[0] is True:
+                    raise configparser.NoOptionError(key, section)
+                else:
+                    return_dict[key] = def_val[1]
+
+    return return_dict
+
+
+def read_hosts(filename="hosts.txt"):
+    with open(filename, "r") as f:
+        nhosts = int(f.readline())
+
+        all_hosts = []
+
+        for i in range(nhosts):
+            x, y, state, reg = f.readline().split()
+            all_hosts.append(Host(float(x), float(y), state, int(reg)))
+
+    return all_hosts
+
+
+def gen_rand_landscape(filename="hosts.txt", nhosts=100):
+    all_x = np.random.random_sample(nhosts)
+    all_y = np.random.random_sample(nhosts)
+
+    with open(filename, "w") as f:
+        f.write(str(nhosts) + "\n")
+        for i in range(nhosts):
+            f.write(str(all_x[i]) + " " + str(all_y[i]) + " S 0\n")
