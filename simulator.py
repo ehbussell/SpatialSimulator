@@ -1,6 +1,7 @@
 import config
 import argparse
 import eventhandling
+import outputdata
 import numpy as np
 from host import Host
 from ratesum import RateSum
@@ -8,7 +9,7 @@ from ratesum import RateSum
 
 def kernel(dist):
     if dist > 0:
-        return 1/dist
+        return 0.001/dist
     else:
         return 0
 
@@ -57,6 +58,7 @@ def run_epidemic(params):
 
     # Setup
     params['next_state'] = setup(params)
+    params['kernel'] = kernel
 
     if params['RateStructure-Infection'] == "ratesum":
         inf_rates = RateSum(nhosts)
@@ -111,7 +113,6 @@ def run_epidemic(params):
     print("Initial setup complete")
 
     time = 0
-    print_state(time, all_hosts)
 
     # Run gillespie loop
     while True:
@@ -131,20 +132,13 @@ def run_epidemic(params):
 
         if select_rate < inf_rates.get_total_rate():
             eventID = inf_rates.select_event(select_rate)
-            do_event(eventID, all_hosts, all_rates, params)
+            do_event(eventID, all_hosts, all_rates, params, time)
         elif select_rate < adv_rates.get_total_rate():
             eventID = adv_rates.select_event(
                 select_rate - inf_rates.get_total_rate())
-            do_event(eventID, all_hosts, all_rates, params)
+            do_event(eventID, all_hosts, all_rates, params, time)
 
-        print_state(time, all_hosts)
-
-
-def print_state(time, all_hosts):
-    print("Time: " + str(time))
-    for host in all_hosts:
-        print(host.state)
-    print("\n")
+    outputdata.output_data_hosts(all_hosts, params)
 
 
 if __name__ == "__main__":
