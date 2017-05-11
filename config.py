@@ -17,11 +17,15 @@ default_config = OrderedDict([
                       "Required if D in model", float)),
         ('IAdvRate', (False, 1.0, "I->R transition rate.  "
                       "Required if R in model", float)),
+        ('RAdvRate', (False, 0.0, "R->S transition rate.  "
+                      "Required if RS in model", float)),
     ])),
     ('Simulation', OrderedDict([
         ('FinalTime', (True, 10.0, "Time to stop the simulation.", float)),
         ('SummaryOutputFreq', (True, 0.2, "How often to output region summary"
                                " to output file.", float)),
+        ('NIterations', (False, 1, "Number of individual simulations to run",
+                         int)),
         ('NRegions', (False, 0, "Number of distinct regions.", int)),
     ])),
     ('Optimisation', OrderedDict([

@@ -33,3 +33,7 @@ class RateSum(object):
 
     def full_resum(self):
         self.totrate = np.sum(self.rates)
+
+    def zero_rates(self):
+        self.rates = np.zeros(self.nevents)
+        self.full_resum()

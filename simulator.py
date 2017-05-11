@@ -11,7 +11,7 @@ from ratesum import RateSum
 
 def kernel(dist):
     if dist > 0:
-        return 0.001/dist
+        return 0.01/dist
     else:
         return 0
 
@@ -23,8 +23,7 @@ def calc_dist_kernel(hosts):
 
     for i in range(nhosts):
         for j in range(i):
-            dist = np.linalg.norm([hosts[i].x-hosts[j].x,
-                                   hosts[i].y-hosts[j].y])
+            dist = np.linalg.norm([hosts[i].x-hosts[j].x, hosts[i].y-hosts[j].y])
             distances[i, j] = dist
             distances[j, i] = dist
 
@@ -57,24 +56,22 @@ def run_epidemic(params):
     time1 = time_mod.time()
 
     # Read in hosts
-    all_hosts = config.read_hosts()
-    nhosts = len(all_hosts)
+    params['init_hosts'] = config.read_hosts()
+    params['nhosts'] = len(params['init_hosts'])
 
     # Setup
     params['next_state'] = setup(params)
     params['kernel'] = kernel
-    params['all_events'] = []
-    params['region_summary'] = [{key: 0 for key in list(params['Model'])}
-                                for _ in range(params['NRegions'])]
-    params['summary_dump'] = []
+    params['init_region_summary'] = [{key: 0 for key in list(params['Model'])}
+                                     for _ in range(params['NRegions'])]
 
     if params['RateStructure-Infection'] == "ratesum":
-        inf_rates = RateSum(nhosts)
+        inf_rates = RateSum(params['nhosts'])
     else:
         raise ValueError("Invalid rate structure - infection events!")
 
     if params['RateStructure-Advance'] == "ratesum":
-        adv_rates = RateSum(nhosts)
+        adv_rates = RateSum(params['nhosts'])
     else:
         raise ValueError("Invalid rate structure - advance events!")
 
@@ -82,92 +79,93 @@ def run_epidemic(params):
 
     # Setup initial rates
     if params['CacheKernel'] is True:
-        distances, kernel_vals = calc_dist_kernel(all_hosts)
+        distances, kernel_vals = calc_dist_kernel(params['init_hosts'])
         params['kernel_vals'] = kernel_vals
         params['distances'] = distances
         do_event = eventhandling.do_event_cached
 
-        inf_rates_tmp = np.zeros(nhosts)
-        adv_rates_tmp = np.zeros(nhosts)
-        for i in range(nhosts):
-            current_state = all_hosts[i].state
-            params['region_summary'][all_hosts[i].reg][current_state] += 1
-            if current_state in "ECDI":
-                adv_rates_tmp[i] = params[current_state + 'AdvRate']
-                if current_state in "CI":
-                    for j in range(nhosts):
-                        if all_hosts[j].state == "S":
-                            inf_rates_tmp[j] += params['kernel_vals'][j, i]
-
     else:
         do_event = eventhandling.do_event_uncached
 
-        inf_rates_tmp = np.zeros(nhosts)
-        adv_rates_tmp = np.zeros(nhosts)
-        for i in range(nhosts):
-            current_state = all_hosts[i].state
-            params['region_summary'][all_hosts[i].reg][current_state] += 1
-            if current_state in "ECDI":
-                adv_rates_tmp[i] = params[current_state + 'AdvRate']
-                if current_state in "CI":
-                    for j in range(nhosts):
-                        if all_hosts[j].state == "S":
-                            inf_rates_tmp[j] += kernel(np.linalg.norm([
-                                all_hosts[i].x-all_hosts[j].x,
-                                all_hosts[i].y-all_hosts[j].y]))
-
-    for i in range(nhosts):
-        inf_rates.insert_rate(i, inf_rates_tmp[i])
-        adv_rates.insert_rate(i, adv_rates_tmp[i])
+    params['init_inf_rates'] = np.zeros(params['nhosts'])
+    params['init_adv_rates'] = np.zeros(params['nhosts'])
+    for i in range(params['nhosts']):
+        current_state = params['init_hosts'][i].state
+        params['init_region_summary'][params['init_hosts'][i].reg][current_state] += 1
+        if current_state in "ECDI":
+            params['init_adv_rates'][i] = params[current_state + 'AdvRate']
+            if current_state in "CI":
+                for j in range(params['nhosts']):
+                    if params['init_hosts'][j].state == "S":
+                        if params['CacheKernel'] is True:
+                            params['init_inf_rates'][j] += params['kernel_vals'][j, i]
+                        else:
+                            params['init_inf_rates'][j] += kernel(np.linalg.norm([
+                                params['init_hosts'][i].x-params['init_hosts'][j].x,
+                                params['init_hosts'][i].y-params['init_hosts'][j].y]))
 
     print("Initial setup complete")
 
-    time2 = time_mod.time()
+    for iteration in range(params['NIterations']):
 
-    time = 0
-    params['summary_dump'].append(
-        (time, copy.deepcopy(params['region_summary'])))
-    nextSummaryDumpTime = time + params['SummaryOutputFreq']
+        run_params = {}
+        run_params['all_events'] = []
+        run_params['region_summary'] = copy.deepcopy(params['init_region_summary'])
+        run_params['summary_dump'] = []
 
-    # Run gillespie loop
-    while True:
-        inf_rates.full_resum()  # As errors accumulate in total rate
-        adv_rates.full_resum()  # As errors accumulate in total rate
-        totRate = inf_rates.get_total_rate() + adv_rates.get_total_rate()
-        if totRate <= 0:
-            break
+        all_hosts = copy.deepcopy(params['init_hosts'])
 
-        nextTime = (-1.0/totRate)*np.log(np.random.random_sample())
-        select_rate = np.random.random_sample()*totRate
+        inf_rates.zero_rates()
+        adv_rates.zero_rates()
 
-        time += nextTime
+        for i in range(params['nhosts']):
+            inf_rates.insert_rate(i, params['init_inf_rates'][i])
+            adv_rates.insert_rate(i, params['init_adv_rates'][i])
 
-        while time >= nextSummaryDumpTime:
-            params['summary_dump'].append(
-                (nextSummaryDumpTime, copy.deepcopy(params['region_summary'])))
-            nextSummaryDumpTime += params['SummaryOutputFreq']
+        time2 = time_mod.time()
 
-        if time > params['FinalTime']:
-            break
+        time = 0
+        run_params['summary_dump'].append((time, copy.deepcopy(params['init_region_summary'])))
+        nextSummaryDumpTime = time + params['SummaryOutputFreq']
 
-        if select_rate < inf_rates.get_total_rate():
-            eventID = inf_rates.select_event(select_rate)
-            do_event(eventID, all_hosts, all_rates, params, time)
-        elif select_rate < adv_rates.get_total_rate():
-            eventID = adv_rates.select_event(
-                select_rate - inf_rates.get_total_rate())
-            do_event(eventID, all_hosts, all_rates, params, time)
+        # Run gillespie loop
+        while True:
+            inf_rates.full_resum()  # As errors accumulate in total rate
+            adv_rates.full_resum()  # As errors accumulate in total rate
+            totRate = inf_rates.get_total_rate() + adv_rates.get_total_rate()
+            if totRate <= 0:
+                break
 
-    params['summary_dump'].append(
-        (nextSummaryDumpTime, copy.deepcopy(params['region_summary'])))
+            nextTime = (-1.0/totRate)*np.log(np.random.random_sample())
+            select_rate = np.random.random_sample()*totRate
 
-    time3 = time_mod.time()
+            time += nextTime
 
-    print(time2-time1, time3-time2, time3-time1)
+            while time >= nextSummaryDumpTime:
+                run_params['summary_dump'].append((nextSummaryDumpTime,
+                                                  copy.deepcopy(run_params['region_summary'])))
+                nextSummaryDumpTime += params['SummaryOutputFreq']
 
-    outputdata.output_data_hosts(all_hosts, params)
-    outputdata.output_data_events(params)
-    outputdata.output_data_summary(params)
+            if time > params['FinalTime']:
+                break
+
+            if select_rate < inf_rates.get_total_rate():
+                eventID = inf_rates.select_event(select_rate)
+                do_event(eventID, all_hosts, all_rates, params, run_params, time)
+            elif select_rate < adv_rates.get_total_rate():
+                eventID = adv_rates.select_event(select_rate - inf_rates.get_total_rate())
+                do_event(eventID, all_hosts, all_rates, params, run_params, time)
+
+        run_params['summary_dump'].append((nextSummaryDumpTime,
+                                          copy.deepcopy(run_params['region_summary'])))
+
+        time3 = time_mod.time()
+
+        print(time2-time1, time3-time2, time3-time1)
+
+        outputdata.output_data_hosts(all_hosts, params, iteration=iteration)
+        outputdata.output_data_events(run_params, iteration=iteration)
+        outputdata.output_data_summary(params, run_params, iteration=iteration)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
-def output_data_hosts(all_hosts, params, filename="output_hosts.csv"):
+def output_data_hosts(all_hosts, params, file_stub="output_hosts", iteration=0):
     states = list(params['Model'])
     nhosts = len(all_hosts)
+
+    filename = file_stub + "_" + str(iteration) + ".csv"
 
     with open(filename, "w") as f:
         f.write("hostID,posX,posY")
@@ -16,18 +18,22 @@ def output_data_hosts(all_hosts, params, filename="output_hosts.csv"):
             f.write("\n")
 
 
-def output_data_events(params, filename="output_events.csv"):
+def output_data_events(run_params, file_stub="output_events", iteration=0):
+    filename = file_stub + "_" + str(iteration) + ".csv"
+
     with open(filename, "w") as f:
         f.write("time,hostID,oldState,newState\n")
 
-        for event in params['all_events']:
+        for event in run_params['all_events']:
             event_str = ",".join([str(x) for x in event])
             f.write(event_str + "\n")
 
 
-def output_data_summary(params, filename_stub="output_DPC"):
+def output_data_summary(params, run_params, file_stub="output_DPC", iteration=0):
     for region in range(params['NRegions']):
-        filename = filename_stub + "_region" + str(region) + ".csv"
+        filename = file_stub + "_region" + str(region)
+        filename += "_" + str(iteration) + ".csv"
+
         states = list(params['Model'])
 
         with open(filename, "w") as f:
@@ -36,7 +42,7 @@ def output_data_summary(params, filename_stub="output_DPC"):
                 f.write(","+state)
             f.write("\n")
 
-            for entry in params['summary_dump']:
+            for entry in run_params['summary_dump']:
                 f.write(str(entry[0]))
                 for state in states:
                     f.write(","+str(entry[1][region][state]))

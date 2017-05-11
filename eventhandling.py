@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def do_event_cached(hostID, all_hosts, all_rates, params, time):
+def do_event_cached(hostID, all_hosts, all_rates, params, run_params, time):
     """Carry out event on given host, and update rates."""
     inf_rates, adv_rates = all_rates
 
@@ -32,12 +32,12 @@ def do_event_cached(hostID, all_hosts, all_rates, params, time):
 
     all_hosts[hostID].jump_times[new_state] = time
 
-    params['all_events'].append((time, hostID, old_state, new_state))
-    params['region_summary'][all_hosts[hostID].reg][old_state] -= 1
-    params['region_summary'][all_hosts[hostID].reg][new_state] += 1
+    run_params['all_events'].append((time, hostID, old_state, new_state))
+    run_params['region_summary'][all_hosts[hostID].reg][old_state] -= 1
+    run_params['region_summary'][all_hosts[hostID].reg][new_state] += 1
 
 
-def do_event_uncached(hostID, all_hosts, all_rates, params, time):
+def do_event_uncached(hostID, all_hosts, all_rates, params, run_params, time):
     """Carry out event on given host, and update rates."""
     inf_rates, adv_rates = all_rates
 
@@ -72,6 +72,6 @@ def do_event_uncached(hostID, all_hosts, all_rates, params, time):
 
     all_hosts[hostID].jump_times[new_state] = time
 
-    params['all_events'].append((time, hostID, old_state, new_state))
-    params['region_summary'][all_hosts[hostID].reg][old_state] -= 1
-    params['region_summary'][all_hosts[hostID].reg][new_state] += 1
+    run_params['all_events'].append((time, hostID, old_state, new_state))
+    run_params['region_summary'][all_hosts[hostID].reg][old_state] -= 1
+    run_params['region_summary'][all_hosts[hostID].reg][new_state] += 1
