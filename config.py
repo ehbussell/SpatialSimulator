@@ -20,6 +20,9 @@ default_config = OrderedDict([
     ])),
     ('Simulation', OrderedDict([
         ('FinalTime', (True, 10.0, "Time to stop the simulation.", float)),
+        ('SummaryOutputFreq', (True, 0.2, "How often to output region summary"
+                               " to output file.", float)),
+        ('NRegions', (False, 0, "Number of distinct regions.", int)),
     ])),
     ('Optimisation', OrderedDict([
         ('CacheKernel', (False, False, "Whether or not to cache the full "

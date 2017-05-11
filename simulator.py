@@ -2,6 +2,8 @@ import config
 import argparse
 import eventhandling
 import outputdata
+import copy
+import time as time_mod
 import numpy as np
 from host import Host
 from ratesum import RateSum
@@ -52,6 +54,8 @@ def run_epidemic(params):
 
     print(params)
 
+    time1 = time_mod.time()
+
     # Read in hosts
     all_hosts = config.read_hosts()
     nhosts = len(all_hosts)
@@ -59,6 +63,10 @@ def run_epidemic(params):
     # Setup
     params['next_state'] = setup(params)
     params['kernel'] = kernel
+    params['all_events'] = []
+    params['region_summary'] = [{key: 0 for key in list(params['Model'])}
+                                for _ in range(params['NRegions'])]
+    params['summary_dump'] = []
 
     if params['RateStructure-Infection'] == "ratesum":
         inf_rates = RateSum(nhosts)
@@ -83,6 +91,7 @@ def run_epidemic(params):
         adv_rates_tmp = np.zeros(nhosts)
         for i in range(nhosts):
             current_state = all_hosts[i].state
+            params['region_summary'][all_hosts[i].reg][current_state] += 1
             if current_state in "ECDI":
                 adv_rates_tmp[i] = params[current_state + 'AdvRate']
                 if current_state in "CI":
@@ -97,6 +106,7 @@ def run_epidemic(params):
         adv_rates_tmp = np.zeros(nhosts)
         for i in range(nhosts):
             current_state = all_hosts[i].state
+            params['region_summary'][all_hosts[i].reg][current_state] += 1
             if current_state in "ECDI":
                 adv_rates_tmp[i] = params[current_state + 'AdvRate']
                 if current_state in "CI":
@@ -112,7 +122,12 @@ def run_epidemic(params):
 
     print("Initial setup complete")
 
+    time2 = time_mod.time()
+
     time = 0
+    params['summary_dump'].append(
+        (time, copy.deepcopy(params['region_summary'])))
+    nextSummaryDumpTime = time + params['SummaryOutputFreq']
 
     # Run gillespie loop
     while True:
@@ -127,6 +142,11 @@ def run_epidemic(params):
 
         time += nextTime
 
+        while time >= nextSummaryDumpTime:
+            params['summary_dump'].append(
+                (nextSummaryDumpTime, copy.deepcopy(params['region_summary'])))
+            nextSummaryDumpTime += params['SummaryOutputFreq']
+
         if time > params['FinalTime']:
             break
 
@@ -138,7 +158,16 @@ def run_epidemic(params):
                 select_rate - inf_rates.get_total_rate())
             do_event(eventID, all_hosts, all_rates, params, time)
 
+    params['summary_dump'].append(
+        (nextSummaryDumpTime, copy.deepcopy(params['region_summary'])))
+
+    time3 = time_mod.time()
+
+    print(time2-time1, time3-time2, time3-time1)
+
     outputdata.output_data_hosts(all_hosts, params)
+    outputdata.output_data_events(params)
+    outputdata.output_data_summary(params)
 
 
 if __name__ == "__main__":
