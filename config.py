@@ -9,24 +9,24 @@ default_config = OrderedDict([
     ('Epidemiology', OrderedDict([
         ('Model', (True, "SIR", "Compartmental model to use. SECIR or SEDIR "
                    "or a subset of one of these", str)),
-        ('EAdvRate', (False, 1.0, "E->nextState transition rate.  "
-                      "Required if E in model", float)),
-        ('CAdvRate', (False, 1.0, "C->nextState transition rate.  "
-                      "Required if C in model", float)),
-        ('DAdvRate', (False, 1.0, "D->nextState transition rate.  "
-                      "Required if D in model", float)),
-        ('IAdvRate', (False, 1.0, "I->R transition rate.  "
-                      "Required if R in model", float)),
-        ('RAdvRate', (False, 0.0, "R->S transition rate.  "
-                      "Required if RS in model", float)),
+        ('EAdvRate', (False, 1.0, "E->nextState transition rate.  Required if E in model", float)),
+        ('CAdvRate', (False, 1.0, "C->nextState transition rate.  Required if C in model", float)),
+        ('DAdvRate', (False, 1.0, "D->nextState transition rate.  Required if D in model", float)),
+        ('IAdvRate', (False, 1.0, "I->R transition rate.  Required if R in model", float)),
+        ('RAdvRate', (False, 0.0, "R->S transition rate.  Required if RS in model", float)),
+        ('KernelType', (True, "EXPONENTIAL", "Functional form to use for the dispersal kernel.  "
+                        "Options are: EXPONENTIAL, NONSPATIAL", str)),
+        ('KernelScale', (False, 1.0, "Scale parameter for the kernel.  Required if KernelType is"
+                         "EXPONENTIAL", float)),
     ])),
     ('Simulation', OrderedDict([
         ('FinalTime', (True, 10.0, "Time to stop the simulation.", float)),
         ('SummaryOutputFreq', (True, 0.2, "How often to output region summary"
                                " to output file.", float)),
+        ('HostFile', (True, "hosts.txt", "Name of file containing host locations.", str)),
         ('NIterations', (False, 1, "Number of individual simulations to run",
                          int)),
-        ('NRegions', (False, 0, "Number of distinct regions.", int)),
+        ('NRegions', (False, 1, "Number of distinct regions.", int)),
     ])),
     ('Optimisation', OrderedDict([
         ('CacheKernel', (False, False, "Whether or not to cache the full "
@@ -125,3 +125,11 @@ def gen_rand_landscape(filename="hosts.txt", nhosts=100):
         f.write(str(nhosts) + "\n")
         for i in range(nhosts):
             f.write(str(all_x[i]) + " " + str(all_y[i]) + " S 0\n")
+
+
+def verify_params(params):
+    # TODO code to verify a parameter dictionary is complete
+    # Option to fill in default values for missing keys with/without warning
+    # Should somehow check all necessary info is present i.e. AdvRates are correctly specified
+    #   even though these keys are optional
+    pass
