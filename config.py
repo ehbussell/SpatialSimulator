@@ -9,6 +9,7 @@ default_config = OrderedDict([
     ('Epidemiology', OrderedDict([
         ('Model', (True, "SIR", "Compartmental model to use. SECIR or SEDIR "
                    "or a subset of one of these", str)),
+        ('InfRate', (True, 1.0, "Value of the infection rate.", float)),
         ('EAdvRate', (False, 1.0, "E->nextState transition rate.  Required if E in model", float)),
         ('CAdvRate', (False, 1.0, "C->nextState transition rate.  Required if C in model", float)),
         ('DAdvRate', (False, 1.0, "D->nextState transition rate.  Required if D in model", float)),
@@ -117,14 +118,19 @@ def read_hosts(filename="hosts.txt"):
     return all_hosts
 
 
-def gen_rand_landscape(filename="hosts.txt", nhosts=100):
+def gen_rand_landscape(filename="hosts.txt", nhosts=100, rand_infs=0):
     all_x = np.random.random_sample(nhosts)
     all_y = np.random.random_sample(nhosts)
+
+    infected = np.random.choice(nhosts, rand_infs, replace=False)
 
     with open(filename, "w") as f:
         f.write(str(nhosts) + "\n")
         for i in range(nhosts):
-            f.write(str(all_x[i]) + " " + str(all_y[i]) + " S 0\n")
+            if i in infected:
+                f.write(str(all_x[i]) + " " + str(all_y[i]) + " I 0\n")
+            else:
+                f.write(str(all_x[i]) + " " + str(all_y[i]) + " S 0\n")
 
 
 def verify_params(params):

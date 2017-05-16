@@ -156,13 +156,18 @@ class Simulator:
         time = 0
         run_params['summary_dump'].append(
             (time, copy.deepcopy(self.params['init_region_summary'])))
-        nextSummaryDumpTime = time + params['SummaryOutputFreq']
+        if self.params['SummaryOutputFreq'] != 0:
+            nextSummaryDumpTime = time + self.params['SummaryOutputFreq']
+        else:
+            nextSummaryDumpTime = self.params['FinalTime']
 
         # Run gillespie loop
         while True:
             self.inf_rates.full_resum()  # As errors accumulate in total rate
             self.adv_rates.full_resum()  # As errors accumulate in total rate
-            totRate = self.inf_rates.get_total_rate() + self.adv_rates.get_total_rate()
+            totRates = [self.params['InfRate']*self.inf_rates.get_total_rate(),
+                        self.adv_rates.get_total_rate()]
+            totRate = np.sum(totRates)
             if totRate <= 0:
                 break
 
@@ -179,25 +184,26 @@ class Simulator:
             if time > self.params['FinalTime']:
                 break
 
-            if select_rate < self.inf_rates.get_total_rate():
-                eventID = self.inf_rates.select_event(select_rate)
+            if select_rate < totRates[0]:
+                eventID = self.inf_rates.select_event(select_rate/self.params['InfRate'])
                 self.do_event(eventID, all_hosts, self.all_rates, self.params, run_params, time)
-            elif select_rate < self.adv_rates.get_total_rate():
+            elif select_rate < np.sum(totRates):
                 eventID = self.adv_rates.select_event(
-                    select_rate - self.inf_rates.get_total_rate())
+                    select_rate - self.params['InfRate']*self.inf_rates.get_total_rate())
                 self.do_event(eventID, all_hosts, self.all_rates, self.params, run_params, time)
 
         run_params['summary_dump'].append((nextSummaryDumpTime,
                                           copy.deepcopy(run_params['region_summary'])))
 
-        print("Run {0} of {1} complete".format(iteration+1, self.params['NIterations']))
+        print("Run {0} of {1} complete".format(iteration+1, self.params['NIterations']), end="\r")
 
         return (all_hosts, run_params)
 
     def output_run_data(self, all_hosts, run_params, iteration=0):
         outputdata.output_data_hosts(all_hosts, self.params, iteration=iteration)
         outputdata.output_data_events(run_params, iteration=iteration)
-        outputdata.output_data_summary(self.params, run_params, iteration=iteration)
+        if self.params['SummaryOutputFreq'] != 0:
+            outputdata.output_data_summary(self.params, run_params, iteration=iteration)
 
 
 def run_epidemics(params):
