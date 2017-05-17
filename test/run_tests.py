@@ -4,6 +4,7 @@ import glob
 import os
 import numpy as np
 from scipy.optimize import brentq
+from scipy.stats import anderson_ksamp
 import matplotlib.pyplot as plt
 
 plt.style.use("ggplot")
@@ -60,12 +61,57 @@ def test_nonspatial(nruns=10000):
     return test_passed
 
 
-def test_spatial(nruns=100):
+def test_spatial(nruns=1000):
     """
     -   Setup simulator to match a preset Webidemics configuration
     -   Run simulator N times
     -   Compare distribution of final sizes using scipy.stats.anderson_ksamp
     """
+
+    # Setup Webidemics
+    simulator.config.gen_rand_landscape("test/randomHosts1000.txt", 1000, fixed_infs=[0, 1])
+
+    subprocess.run(["test/Webidemics/WebidemicsTest.exe",
+                    "hostLocs=test/randomHosts1000.txt",
+                    "outStub=test/spatial_test_output",
+                    "numIts="+str(nruns)], stdout=subprocess.DEVNULL)
+
+    # Setup simulator
+    params = simulator.config.read_config_file("test/spatial_test.ini")
+    params['NIterations'] = nruns
+
+    test_sim = simulator.Simulator(params)
+    test_sim.setup(silent=True)
+
+    Webidemics_final_rs = []
+    test_sim_final_rs = []
+
+    for i in range(nruns):
+        all_hosts, run_params = test_sim.run_epidemic(i)
+        test_sim_final_rs.append(run_params['summary_dump'][-1][1][0]['R'])
+
+        with open("test/spatial_test_output_end_"+str(i)+".txt", "r") as f:
+            line = f.readline()
+            Webidemics_final_rs.append(int(line.split()[5]))
+
+    bins = np.linspace(0, 1000, 100)
+
+    plt.hist(test_sim_final_rs, bins, alpha=0.5, label="Simulator")
+    plt.hist(Webidemics_final_rs, bins, alpha=0.5, label="Webidemics")
+    plt.legend(loc="upper right")
+    plt.show()
+
+    test = anderson_ksamp([test_sim_final_rs, Webidemics_final_rs])
+
+    print(test)
+
+    for f in glob.glob("test/spatial_test_output*"):
+        os.remove(f)
+
+    if test[0] > test[1][1]:
+        return False
+    else:
+        return True
 
 
 def test_kernel():
@@ -108,19 +154,19 @@ def test_kernel():
 
 
 if __name__ == "__main__":
-    print("Running test_kernel...")
-    test1_result = test_kernel()
-    if test1_result is True:
-        print("...test_kernel PASSED")
-    else:
-        print("...test_kernel FAILED")
-
-    print("Running test_nonspatial...")
-    test2_result = test_nonspatial()
-    if test2_result is True:
-        print("...test_nonspatial PASSED")
-    else:
-        print("...test_nonspatial FAILED")
+    # print("Running test_kernel...")
+    # test1_result = test_kernel()
+    # if test1_result is True:
+    #     print("...test_kernel PASSED")
+    # else:
+    #     print("...test_kernel FAILED")
+    #
+    # print("Running test_nonspatial...")
+    # test2_result = test_nonspatial()
+    # if test2_result is True:
+    #     print("...test_nonspatial PASSED")
+    # else:
+    #     print("...test_nonspatial FAILED")
 
     print("Running test_spatial...")
     test3_result = test_spatial()

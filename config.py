@@ -118,11 +118,18 @@ def read_hosts(filename="hosts.txt"):
     return all_hosts
 
 
-def gen_rand_landscape(filename="hosts.txt", nhosts=100, rand_infs=0):
+def gen_rand_landscape(filename="hosts.txt", nhosts=100, rand_infs=0, fixed_infs=None):
     all_x = np.random.random_sample(nhosts)
     all_y = np.random.random_sample(nhosts)
 
-    infected = np.random.choice(nhosts, rand_infs, replace=False)
+    host_list = list(range(nhosts))
+    infected = []
+
+    if fixed_infs is not None:
+        infected = fixed_infs
+        host_list = [x for x in host_list if x not in infected]
+
+    infected += list(np.random.choice(host_list, rand_infs, replace=False))
 
     with open(filename, "w") as f:
         f.write(str(nhosts) + "\n")
