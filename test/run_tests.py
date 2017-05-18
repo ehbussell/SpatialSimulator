@@ -2,12 +2,22 @@ import simulator
 import subprocess
 import glob
 import os
+import argparse
 import numpy as np
 from scipy.optimize import brentq
 from scipy.stats import anderson_ksamp
 import matplotlib.pyplot as plt
 
 plt.style.use("ggplot")
+graphParams = {
+   'axes.labelsize': 10,
+   'font.size': 10,
+   'legend.fontsize': 8,
+   'xtick.labelsize': 8,
+   'ytick.labelsize': 8,
+   'text.usetex': False,
+   'figure.figsize': [6, 4]
+}
 
 
 def test_nonspatial(nruns=10000):
@@ -55,8 +65,12 @@ def test_nonspatial(nruns=10000):
     if np.round(frac_inf_major, 3) != np.round(exp_frac_inf_major, 3):
         test_passed = False
 
-    plt.hist(final_rs, bins=50)
-    plt.show()
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax1.hist(final_rs, bins=50, normed=True)
+    ax1.set_xlabel("Final Number Removed")
+    ax1.set_ylabel("Probability")
+    fig.savefig("test/nonspatial_test_finalSizeDistrib", dpi=300)
 
     return test_passed
 
@@ -96,10 +110,14 @@ def test_spatial(nruns=1000):
 
     bins = np.linspace(0, 1000, 100)
 
-    plt.hist(test_sim_final_rs, bins, alpha=0.5, label="Simulator")
-    plt.hist(Webidemics_final_rs, bins, alpha=0.5, label="Webidemics")
-    plt.legend(loc="upper right")
-    plt.show()
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax1.hist(test_sim_final_rs, bins, alpha=0.5, label="Simulator", normed=True)
+    ax1.hist(Webidemics_final_rs, bins, alpha=0.5, label="Webidemics", normed=True)
+    ax1.legend(loc="upper right")
+    ax1.set_xlabel("Final Number Removed")
+    ax1.set_ylabel("Probability")
+    fig.savefig("test/spatial_test_finalSizeDistrib", dpi=300)
 
     test = anderson_ksamp([test_sim_final_rs, Webidemics_final_rs])
 
@@ -154,23 +172,41 @@ def test_kernel():
 
 
 if __name__ == "__main__":
-    # print("Running test_kernel...")
-    # test1_result = test_kernel()
-    # if test1_result is True:
-    #     print("...test_kernel PASSED")
-    # else:
-    #     print("...test_kernel FAILED")
-    #
-    # print("Running test_nonspatial...")
-    # test2_result = test_nonspatial()
-    # if test2_result is True:
-    #     print("...test_nonspatial PASSED")
-    # else:
-    #     print("...test_nonspatial FAILED")
+    parser = argparse.ArgumentParser(
+        description="Run tests on simulator.")
+    parser.add_argument("Tests", help="Test numbers to run.  " +
+                        "If blank all tests are carried out", nargs="*",
+                        default=0, type=int)
+    parser.add_argument("-s", "--Spatial_nRuns",
+                        help="Number of runs to carry out in spatial test.", default=1000,
+                        type=int)
+    parser.add_argument("-n", "--NonSpatial_nRuns",
+                        help="Number of runs to carry out in non-spatial test.", default=10000,
+                        type=int)
+    args = parser.parse_args()
 
-    print("Running test_spatial...")
-    test3_result = test_spatial()
-    if test3_result is True:
-        print("...test_spatial PASSED")
-    else:
-        print("...test_spatial FAILED")
+    test_list = args.Tests
+
+    if 1 in test_list or 0 in test_list:
+        print("Running test_kernel...")
+        test1_result = test_kernel()
+        if test1_result is True:
+            print("...test_kernel PASSED")
+        else:
+            print("...test_kernel FAILED")
+
+    if 2 in test_list or 0 in test_list:
+        print("Running test_nonspatial...")
+        test2_result = test_nonspatial(args.NonSpatial_nRuns)
+        if test2_result is True:
+            print("...test_nonspatial PASSED")
+        else:
+            print("...test_nonspatial FAILED")
+
+    if 3 in test_list or 0 in test_list:
+        print("Running test_spatial...")
+        test3_result = test_spatial(args.Spatial_nRuns)
+        if test3_result is True:
+            print("...test_spatial PASSED")
+        else:
+            print("...test_spatial FAILED")
