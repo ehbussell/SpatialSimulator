@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class RateSum(object):
+class RateSum:
 
     def __init__(self, size):
         self.rates = np.zeros(size)

@@ -7,6 +7,7 @@ import time as time_mod
 import numpy as np
 from host import Host
 from ratesum import RateSum
+from rateinterval import RateInterval
 
 
 def kernel_exp(kernel_param):
@@ -60,6 +61,8 @@ class Simulator:
     def setup(self, silent=False):
         """Run all static setup before epidemic simulations."""
 
+        start_time = time_mod.time()
+
         # Read in hosts
         self.params['init_hosts'] = config.read_hosts(self.params['HostFile'])
         self.params['nhosts'] = len(self.params['init_hosts'])
@@ -90,11 +93,15 @@ class Simulator:
 
         if self.params['RateStructure-Infection'] == "ratesum":
             self.inf_rates = RateSum(self.params['nhosts'])
+        elif self.params['RateStructure-Infection'] == "rateinterval":
+            self.inf_rates = RateInterval(self.params['nhosts'])
         else:
             raise ValueError("Invalid rate structure - infection events!")
 
         if self.params['RateStructure-Advance'] == "ratesum":
             self.adv_rates = RateSum(self.params['nhosts'])
+        elif self.params['RateStructure-Advance'] == "rateinterval":
+            self.adv_rates = RateInterval(self.params['nhosts'])
         else:
             raise ValueError("Invalid rate structure - advance events!")
 
@@ -133,10 +140,15 @@ class Simulator:
                                         self.params['init_hosts'][i].y -
                                         self.params['init_hosts'][j].y]))
 
+        end_time = time_mod.time()
+
         if silent is False:
-            print("Initial setup complete")
+            print("Initial setup complete.  "
+                  "Time taken: {0:.3f} seconds.".format(end_time - start_time))
 
     def run_epidemic(self, iteration=0):
+        start_time = time_mod.time()
+
         run_params = {}
         run_params['all_events'] = []
         run_params['region_summary'] = copy.deepcopy(self.params['init_region_summary'])
@@ -195,7 +207,10 @@ class Simulator:
         run_params['summary_dump'].append((nextSummaryDumpTime,
                                           copy.deepcopy(run_params['region_summary'])))
 
-        print("Run {0} of {1} complete".format(iteration+1, self.params['NIterations']), end="\r")
+        end_time = time_mod.time()
+
+        print("Run {0} of {1} complete.  ".format(iteration+1, self.params['NIterations']) +
+              "Time taken: {0:.3f} seconds.".format(end_time - start_time))
 
         return (all_hosts, run_params)
 
