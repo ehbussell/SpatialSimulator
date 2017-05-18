@@ -176,7 +176,7 @@ if __name__ == "__main__":
         description="Run tests on simulator.")
     parser.add_argument("Tests", help="Test numbers to run.  " +
                         "If blank all tests are carried out", nargs="*",
-                        default=0, type=int)
+                        default=[0], type=int)
     parser.add_argument("-s", "--Spatial_nRuns",
                         help="Number of runs to carry out in spatial test.", default=1000,
                         type=int)
