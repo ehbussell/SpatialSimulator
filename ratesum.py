@@ -29,7 +29,7 @@ class RateSum:
         return eventID
 
     def get_total_rate(self):
-        return np.round(self.totrate, 8)
+        return self.totrate
 
     def full_resum(self):
         self.totrate = np.sum(self.rates)
