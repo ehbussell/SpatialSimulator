@@ -20,7 +20,7 @@ graphParams = {
 }
 
 
-def test_nonspatial(nruns=10000):
+def test_nonspatial(nruns=10000, otherOptions=None):
     """
     -   Setup simulator with non-spatial kernel
     -   Run simulator N times
@@ -34,6 +34,9 @@ def test_nonspatial(nruns=10000):
     simulator.config.gen_rand_landscape("test/randomHosts1000.txt", 1000, rand_infs=1)
     params = simulator.config.read_config_file("test/nonspatial_test.ini")
     params['NIterations'] = nruns
+
+    if otherOptions is not None:
+        addOtherOptions(params, otherOptions)
 
     final_rs = []
 
@@ -75,7 +78,7 @@ def test_nonspatial(nruns=10000):
     return test_passed
 
 
-def test_spatial(nruns=1000):
+def test_spatial(nruns=1000, otherOptions=None):
     """
     -   Setup simulator to match a preset Webidemics configuration
     -   Run simulator N times
@@ -93,6 +96,9 @@ def test_spatial(nruns=1000):
     # Setup simulator
     params = simulator.config.read_config_file("test/spatial_test.ini")
     params['NIterations'] = nruns
+
+    if otherOptions is not None:
+        addOtherOptions(params, otherOptions)
 
     test_sim = simulator.Simulator(params)
     test_sim.setup(silent=True)
@@ -171,6 +177,24 @@ def test_kernel():
     return test_passed
 
 
+def addOtherOptions(params, otherOptions):
+    for pair in otherOptions:
+        key, val = pair.split("=")
+        type_val = None
+        for section in simulator.config.default_config:
+            if key in simulator.config.default_config[section]:
+                type_val = simulator.config.default_config[section][key][3]
+
+        if type_val is not None:
+            val = type_val(val)
+        else:
+            raise ValueError("Unknown key=val pair!")
+
+        print(key, val)
+
+        params[key] = val
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run tests on simulator.")
@@ -183,6 +207,8 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--NonSpatial_nRuns",
                         help="Number of runs to carry out in non-spatial test.", default=10000,
                         type=int)
+    parser.add_argument("-o", "--otherOptions", help="Further key=val pairs to pass to params.",
+                        nargs="*", default=None, type=str)
     args = parser.parse_args()
 
     test_list = args.Tests
@@ -197,7 +223,7 @@ if __name__ == "__main__":
 
     if 2 in test_list or 0 in test_list:
         print("Running test_nonspatial...")
-        test2_result = test_nonspatial(args.NonSpatial_nRuns)
+        test2_result = test_nonspatial(args.NonSpatial_nRuns, args.otherOptions)
         if test2_result is True:
             print("...test_nonspatial PASSED")
         else:
@@ -205,7 +231,7 @@ if __name__ == "__main__":
 
     if 3 in test_list or 0 in test_list:
         print("Running test_spatial...")
-        test3_result = test_spatial(args.Spatial_nRuns)
+        test3_result = test_spatial(args.Spatial_nRuns, args.otherOptions)
         if test3_result is True:
             print("...test_spatial PASSED")
         else:
