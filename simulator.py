@@ -8,6 +8,7 @@ import numpy as np
 from host import Host
 from ratesum import RateSum
 from rateinterval import RateInterval
+from ratetree import RateTree
 
 
 def kernel_exp(kernel_param):
@@ -95,6 +96,8 @@ class Simulator:
             self.inf_rates = RateSum(self.params['nhosts'])
         elif self.params['RateStructure-Infection'] == "rateinterval":
             self.inf_rates = RateInterval(self.params['nhosts'])
+        elif self.params['RateStructure-Infection'] == "ratetree":
+            self.inf_rates = RateTree(self.params['nhosts'])
         else:
             raise ValueError("Invalid rate structure - infection events!")
 
@@ -102,6 +105,8 @@ class Simulator:
             self.adv_rates = RateSum(self.params['nhosts'])
         elif self.params['RateStructure-Advance'] == "rateinterval":
             self.adv_rates = RateInterval(self.params['nhosts'])
+        elif self.params['RateStructure-Advance'] == "ratetree":
+            self.adv_rates = RateTree(self.params['nhosts'])
         else:
             raise ValueError("Invalid rate structure - advance events!")
 
@@ -209,7 +214,7 @@ class Simulator:
 
         if silent is False:
             print("Run {0} of {1} complete.  ".format(iteration+1, self.params['NIterations']) +
-                  "Time taken: {0:.3f} seconds.".format(end_time - start_time), end="\r")
+                  "Time taken: {0:.3f} seconds.".format(end_time - start_time), end="\n")
 
         return (all_hosts, run_params)
 
