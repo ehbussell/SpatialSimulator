@@ -146,7 +146,7 @@ class Simulator:
             print("Initial setup complete.  "
                   "Time taken: {0:.3f} seconds.".format(end_time - start_time))
 
-    def run_epidemic(self, iteration=0):
+    def run_epidemic(self, iteration=0, silent=False):
         start_time = time_mod.time()
 
         run_params = {}
@@ -163,8 +163,6 @@ class Simulator:
             self.inf_rates.insert_rate(i, self.params['init_inf_rates'][i])
             self.adv_rates.insert_rate(i, self.params['init_adv_rates'][i])
 
-        time2 = time_mod.time()
-
         time = 0
         run_params['summary_dump'].append(
             (time, copy.deepcopy(self.params['init_region_summary'])))
@@ -175,12 +173,12 @@ class Simulator:
 
         # Run gillespie loop
         while True:
-            self.inf_rates.full_resum()  # As errors accumulate in total rate
-            self.adv_rates.full_resum()  # As errors accumulate in total rate
+            # self.inf_rates.full_resum()  # As errors accumulate in total rate
+            # self.adv_rates.full_resum()  # As errors accumulate in total rate
             totRates = [self.params['InfRate']*self.inf_rates.get_total_rate(),
                         self.adv_rates.get_total_rate()]
             totRate = np.sum(totRates)
-            if totRate <= 0:
+            if totRate <= 10e-10:
                 break
 
             nextTime = (-1.0/totRate)*np.log(np.random.random_sample())
@@ -201,7 +199,7 @@ class Simulator:
                 self.do_event(eventID, all_hosts, self.all_rates, self.params, run_params, time)
             elif select_rate < np.sum(totRates):
                 eventID = self.adv_rates.select_event(
-                    select_rate - self.params['InfRate']*self.inf_rates.get_total_rate())
+                    select_rate - totRates[0])
                 self.do_event(eventID, all_hosts, self.all_rates, self.params, run_params, time)
 
         run_params['summary_dump'].append((nextSummaryDumpTime,
@@ -209,8 +207,9 @@ class Simulator:
 
         end_time = time_mod.time()
 
-        print("Run {0} of {1} complete.  ".format(iteration+1, self.params['NIterations']) +
-              "Time taken: {0:.3f} seconds.".format(end_time - start_time))
+        if silent is False:
+            print("Run {0} of {1} complete.  ".format(iteration+1, self.params['NIterations']) +
+                  "Time taken: {0:.3f} seconds.".format(end_time - start_time), end="\r")
 
         return (all_hosts, run_params)
 
