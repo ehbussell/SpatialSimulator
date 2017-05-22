@@ -33,12 +33,12 @@ default_config = OrderedDict([
         ('CacheKernel', (False, False, "Whether or not to cache the full "
                          "kernel at the start of the simulation", bool)),
         ('RateStructure-Infection', (False, "ratesum",
-                                     "Which rate structure to use for "
-                                     "infection events.  Options are: ratesum",
+                                     "Which rate structure to use for infection events.  Options "
+                                     "are: ratesum, rateinterval, ratetree, rateCR",
                                      str)),
         ('RateStructure-Advance', (False, "ratesum",
-                                   "Which rate structure to use for "
-                                   "advance events.  Options are: ratesum",
+                                   "Which rate structure to use for advance events.  Options are: "
+                                   "ratesum, rateinterval, ratetree, rateCR",
                                    str)),
     ])),
 ])

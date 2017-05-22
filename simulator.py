@@ -9,6 +9,7 @@ from host import Host
 from ratesum import RateSum
 from rateinterval import RateInterval
 from ratetree import RateTree
+from rateCR import RateCR
 
 
 def kernel_exp(kernel_param):
@@ -98,6 +99,9 @@ class Simulator:
             self.inf_rates = RateInterval(self.params['nhosts'])
         elif self.params['RateStructure-Infection'] == "ratetree":
             self.inf_rates = RateTree(self.params['nhosts'])
+        elif self.params['RateStructure-Infection'] == "rateCR":
+            self.inf_rates = RateCR(self.params['nhosts'], 0.125,
+                                    self.params['nhosts']*self.params['nhosts'])
         else:
             raise ValueError("Invalid rate structure - infection events!")
 
@@ -107,6 +111,9 @@ class Simulator:
             self.adv_rates = RateInterval(self.params['nhosts'])
         elif self.params['RateStructure-Advance'] == "ratetree":
             self.adv_rates = RateTree(self.params['nhosts'])
+        elif self.params['RateStructure-Advance'] == "rateCR":
+            self.adv_rates = RateCR(self.params['nhosts'], 0.125,
+                                    self.params['nhosts']*self.params['nhosts'])
         else:
             raise ValueError("Invalid rate structure - advance events!")
 
