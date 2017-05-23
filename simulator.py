@@ -1,15 +1,13 @@
 import config
 import argparse
 import eventhandling
+from eventhandling import EventHandler
 import outputdata
 import copy
 import time as time_mod
 import numpy as np
 from host import Host
-from ratesum import RateSum
-from rateinterval import RateInterval
-from ratetree import RateTree
-from rateCR import RateCR
+from ratehandling import RateHandler
 
 
 def kernel_exp(kernel_param):
@@ -93,31 +91,7 @@ class Simulator:
         self.params['init_region_summary'] = [{key: 0 for key in states}
                                               for _ in range(self.params['NRegions'])]
 
-        if self.params['RateStructure-Infection'] == "ratesum":
-            self.inf_rates = RateSum(self.params['nhosts'])
-        elif self.params['RateStructure-Infection'] == "rateinterval":
-            self.inf_rates = RateInterval(self.params['nhosts'])
-        elif self.params['RateStructure-Infection'] == "ratetree":
-            self.inf_rates = RateTree(self.params['nhosts'])
-        elif self.params['RateStructure-Infection'] == "rateCR":
-            self.inf_rates = RateCR(self.params['nhosts'], 0.125,
-                                    self.params['nhosts']*self.params['nhosts'])
-        else:
-            raise ValueError("Invalid rate structure - infection events!")
-
-        if self.params['RateStructure-Advance'] == "ratesum":
-            self.adv_rates = RateSum(self.params['nhosts'])
-        elif self.params['RateStructure-Advance'] == "rateinterval":
-            self.adv_rates = RateInterval(self.params['nhosts'])
-        elif self.params['RateStructure-Advance'] == "ratetree":
-            self.adv_rates = RateTree(self.params['nhosts'])
-        elif self.params['RateStructure-Advance'] == "rateCR":
-            self.adv_rates = RateCR(self.params['nhosts'], 0.125,
-                                    self.params['nhosts']*self.params['nhosts'])
-        else:
-            raise ValueError("Invalid rate structure - advance events!")
-
-        self.all_rates = [self.inf_rates, self.adv_rates]
+        self.rate_handler = RateHandler(self)
 
         # Setup initial rates
         if self.params['CacheKernel'] is True:
@@ -125,10 +99,8 @@ class Simulator:
                                                       self.params['kernel'])
             self.params['kernel_vals'] = kernel_vals
             self.params['distances'] = distances
-            self.do_event = eventhandling.do_event_cached
 
-        else:
-            self.do_event = eventhandling.do_event_uncached
+        self.event_handler = EventHandler(self, self.rate_handler)
 
         self.params['init_inf_rates'] = np.zeros(self.params['nhosts'])
         self.params['init_adv_rates'] = np.zeros(self.params['nhosts'])
@@ -141,16 +113,7 @@ class Simulator:
                 if current_state in "CI":
                     for j in range(self.params['nhosts']):
                         if self.params['init_hosts'][j].state == "S":
-                            if self.params['CacheKernel'] is True:
-                                self.params['init_inf_rates'][j] += self.params[
-                                    'kernel_vals'][j, i]
-                            else:
-                                self.params['init_inf_rates'][j] += self.params['kernel'](
-                                    np.linalg.norm([
-                                        self.params['init_hosts'][i].x -
-                                        self.params['init_hosts'][j].x,
-                                        self.params['init_hosts'][i].y -
-                                        self.params['init_hosts'][j].y]))
+                            self.params['init_inf_rates'][j] += self.event_handler.kernel(j, i)
 
         end_time = time_mod.time()
 
@@ -161,61 +124,50 @@ class Simulator:
     def run_epidemic(self, iteration=0, silent=False):
         start_time = time_mod.time()
 
-        run_params = {}
-        run_params['all_events'] = []
-        run_params['region_summary'] = copy.deepcopy(self.params['init_region_summary'])
-        run_params['summary_dump'] = []
+        self.run_params = {}
+        self.run_params['all_events'] = []
+        self.run_params['region_summary'] = copy.deepcopy(self.params['init_region_summary'])
+        self.run_params['summary_dump'] = []
 
         all_hosts = copy.deepcopy(self.params['init_hosts'])
 
-        for rates in self.all_rates:
-            rates.zero_rates()
+        self.rate_factor = [self.params['InfRate'], 1]
+        self.rate_handler.zero_rates()
 
         for i in range(self.params['nhosts']):
-            self.inf_rates.insert_rate(i, self.params['init_inf_rates'][i])
-            self.adv_rates.insert_rate(i, self.params['init_adv_rates'][i])
+            self.rate_handler.insert_rate(i, self.params['init_inf_rates'][i], "Infection")
+            self.rate_handler.insert_rate(i, self.params['init_adv_rates'][i], "Advance")
 
-        time = 0
-        run_params['summary_dump'].append(
-            (time, copy.deepcopy(self.params['init_region_summary'])))
+        self.time = 0
+        self.run_params['summary_dump'].append(
+            (self.time, copy.deepcopy(self.params['init_region_summary'])))
         if self.params['SummaryOutputFreq'] != 0:
-            nextSummaryDumpTime = time + self.params['SummaryOutputFreq']
+            nextSummaryDumpTime = self.time + self.params['SummaryOutputFreq']
         else:
             nextSummaryDumpTime = self.params['FinalTime']
 
         # Run gillespie loop
         while True:
-            # self.inf_rates.full_resum()  # As errors accumulate in total rate
-            # self.adv_rates.full_resum()  # As errors accumulate in total rate
-            totRates = [self.params['InfRate']*self.inf_rates.get_total_rate(),
-                        self.adv_rates.get_total_rate()]
-            totRate = np.sum(totRates)
+            totRate, event_type, hostID = self.rate_handler.get_next_event()
             if totRate <= 10e-10:
                 break
 
             nextTime = (-1.0/totRate)*np.log(np.random.random_sample())
-            select_rate = np.random.random_sample()*totRate
 
-            time += nextTime
+            self.time += nextTime
 
-            while time >= nextSummaryDumpTime:
-                run_params['summary_dump'].append((nextSummaryDumpTime,
-                                                  copy.deepcopy(run_params['region_summary'])))
+            while self.time >= nextSummaryDumpTime:
+                self.run_params['summary_dump'].append(
+                    (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))
                 nextSummaryDumpTime += self.params['SummaryOutputFreq']
 
-            if time > self.params['FinalTime']:
+            if self.time > self.params['FinalTime']:
                 break
 
-            if select_rate < totRates[0]:
-                eventID = self.inf_rates.select_event(select_rate/self.params['InfRate'])
-                self.do_event(eventID, all_hosts, self.all_rates, self.params, run_params, time)
-            elif select_rate < np.sum(totRates):
-                eventID = self.adv_rates.select_event(
-                    select_rate - totRates[0])
-                self.do_event(eventID, all_hosts, self.all_rates, self.params, run_params, time)
+            self.event_handler.do_event(event_type, hostID, all_hosts)
 
-        run_params['summary_dump'].append((nextSummaryDumpTime,
-                                          copy.deepcopy(run_params['region_summary'])))
+        self.run_params['summary_dump'].append(
+            (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))
 
         end_time = time_mod.time()
 
@@ -223,7 +175,7 @@ class Simulator:
             print("Run {0} of {1} complete.  ".format(iteration+1, self.params['NIterations']) +
                   "Time taken: {0:.3f} seconds.".format(end_time - start_time), end="\n")
 
-        return (all_hosts, run_params)
+        return (all_hosts, self.run_params)
 
     def output_run_data(self, all_hosts, run_params, iteration=0):
         outputdata.output_data_hosts(all_hosts, self.params, iteration=iteration)
