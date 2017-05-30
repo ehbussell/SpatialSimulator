@@ -102,12 +102,14 @@ class Simulator:
 
         self.event_handler = EventHandler(self, self.rate_handler)
 
+        self.params['region_map'] = {key: [] for key in range(self.params['NRegions'])}
         self.params['init_inf_rates'] = np.zeros(self.params['nhosts'])
         self.params['init_adv_rates'] = np.zeros(self.params['nhosts'])
         for i in range(self.params['nhosts']):
             current_state = self.params['init_hosts'][i].state
             region = self.params['init_hosts'][i].reg
             self.params['init_region_summary'][region][current_state] += 1
+            self.params['region_map'][region].append(i)
             if current_state in "ECDI":
                 self.params['init_adv_rates'][i] = self.params[current_state + 'AdvRate']
                 if current_state in "CI":

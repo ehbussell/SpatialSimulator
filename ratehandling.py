@@ -47,6 +47,8 @@ class RateHandler:
         total_rates = [self.parent_sim.rate_factor[i]*rate.get_total_rate()
                        for i, rate in enumerate(self.all_rates)]
         total_rate = np.sum(total_rates)
+        if total_rate < 10e-10:
+            return (total_rate, None, None)
 
         select_rate = np.random.random_sample()*total_rate
 
@@ -56,7 +58,8 @@ class RateHandler:
             group_rate = total_rates[i]
             if select_rate < cumulative_rate + group_rate:
                 return (total_rate, self.event_types[i],
-                        self.all_rates[i].select_event(select_rate - cumulative_rate))
+                        self.all_rates[i].select_event(
+                            (select_rate - cumulative_rate)/self.parent_sim.rate_factor[i]))
             else:
                 cumulative_rate += group_rate
 
