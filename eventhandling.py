@@ -3,8 +3,8 @@ import numpy as np
 
 class EventHandler:
 
-    def __init__(self, parent_simulator, rate_handler):
-        self.parent_sim = parent_simulator
+    def __init__(self, parent_sim, rate_handler):
+        self.parent_sim = parent_sim
         self.rate_handler = rate_handler
         self.cache_kernel = self.parent_sim.params["CacheKernel"]
 
@@ -24,6 +24,10 @@ class EventHandler:
     def do_event(self, event_type, hostID, all_hosts):
         if event_type == "Infection" or event_type == "Advance":
             self.do_event_standard(hostID, all_hosts)
+        elif event_type == "Cull":
+            self.do_event_cull(hostID, all_hosts)
+        elif event_type == "Intervention":
+            self.parent_sim.params['intervention'].action(hostID, all_hosts)
         else:
             raise ValueError("Unrecognised event type!")
 
@@ -52,6 +56,28 @@ class EventHandler:
                 if all_hosts[i].state == "S":
                     old_rate = self.rate_handler.get_rate(i, "Infection")
                     new_rate = old_rate + self.kernel(i, hostID)
+                    self.rate_handler.insert_rate(i, new_rate, "Infection")
+
+        all_hosts[hostID].jump_times[new_state] = self.parent_sim.time
+
+        self.parent_sim.run_params['all_events'].append(
+            (self.parent_sim.time, hostID, old_state, new_state))
+        self.parent_sim.run_params['region_summary'][all_hosts[hostID].reg][old_state] -= 1
+        self.parent_sim.run_params['region_summary'][all_hosts[hostID].reg][new_state] += 1
+
+    def do_event_cull(self, hostID, all_hosts):
+        old_state = all_hosts[hostID].state
+        new_state = "Culled"
+        all_hosts[hostID].state = new_state
+
+        self.rate_handler.insert_rate(hostID, 0.0, "Infection")
+        self.rate_handler.insert_rate(hostID, 0.0, "Advance")
+        if old_state in "CI":
+            # Distribute rate changes
+            for i in range(len(all_hosts)):
+                if all_hosts[i].state == "S":
+                    old_rate = self.rate_handler.get_rate(i, "Infection")
+                    new_rate = old_rate - self.kernel(i, hostID)
                     self.rate_handler.insert_rate(i, new_rate, "Infection")
 
         all_hosts[hostID].jump_times[new_state] = self.parent_sim.time

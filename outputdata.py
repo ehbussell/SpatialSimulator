@@ -1,5 +1,5 @@
 def output_data_hosts(all_hosts, params, file_stub="output_hosts", iteration=0):
-    states = list(params['Model'])
+    states = list(params['Model']) + ["Culled"]
     nhosts = len(all_hosts)
 
     filename = file_stub + "_" + str(iteration) + ".csv"
@@ -34,7 +34,7 @@ def output_data_summary(params, run_params, file_stub="output_DPC", iteration=0)
         filename = file_stub + "_region" + str(region)
         filename += "_" + str(iteration) + ".csv"
 
-        states = list(params['Model'])
+        states = list(params['Model']) + ["Culled"]
 
         with open(filename, "w") as f:
             f.write("time")

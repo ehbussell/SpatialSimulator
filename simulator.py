@@ -4,6 +4,7 @@ import eventhandling
 from eventhandling import EventHandler
 import outputdata
 import copy
+import importlib
 import time as time_mod
 import numpy as np
 from host import Host
@@ -88,7 +89,7 @@ class Simulator:
         else:
             raise ValueError("Unrecognised KernelType!")
 
-        self.params['init_region_summary'] = [{key: 0 for key in states}
+        self.params['init_region_summary'] = [{key: 0 for key in states + ["Culled"]}
                                               for _ in range(self.params['NRegions'])]
 
         self.rate_handler = RateHandler(self)
@@ -131,7 +132,7 @@ class Simulator:
         self.run_params['region_summary'] = copy.deepcopy(self.params['init_region_summary'])
         self.run_params['summary_dump'] = []
 
-        all_hosts = copy.deepcopy(self.params['init_hosts'])
+        self.all_hosts = copy.deepcopy(self.params['init_hosts'])
 
         self.rate_factor = [self.params['InfRate'], 1]
         self.rate_handler.zero_rates()
@@ -146,27 +147,54 @@ class Simulator:
         if self.params['SummaryOutputFreq'] != 0:
             nextSummaryDumpTime = self.time + self.params['SummaryOutputFreq']
         else:
-            nextSummaryDumpTime = self.params['FinalTime']
+            nextSummaryDumpTime = np.inf
+
+        # Setup Interventions
+        if self.params['InterventionScript'] is not None:
+            # import and create intervention class
+            intervention_module = importlib.import_module(self.params['InterventionScript'])
+            self.params['intervention'] = intervention_module.create_interventions(self)
+        else:
+            self.params['intervention'] = None
+
+        if self.params['intervention'] is None:
+            nextInterventionTime = np.inf
+        else:
+            nextInterventionTime = self.time + self.params['intervention'].update_freq
 
         # Run gillespie loop
         while True:
+            # Find next event from event handler
             totRate, event_type, hostID = self.rate_handler.get_next_event()
-            if totRate <= 10e-10:
-                break
+            if event_type is None:
+                nextTime = np.inf
+            else:
+                nextTime = self.time + (-1.0/totRate)*np.log(np.random.random_sample())
 
-            nextTime = (-1.0/totRate)*np.log(np.random.random_sample())
-
-            self.time += nextTime
-
-            while self.time >= nextSummaryDumpTime:
-                self.run_params['summary_dump'].append(
-                    (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))
-                nextSummaryDumpTime += self.params['SummaryOutputFreq']
-
-            if self.time > self.params['FinalTime']:
-                break
-
-            self.event_handler.do_event(event_type, hostID, all_hosts)
+            if nextTime >= nextSummaryDumpTime or nextTime >= nextInterventionTime:
+                if nextSummaryDumpTime >= nextInterventionTime:
+                    if nextInterventionTime > self.params['FinalTime']:
+                        break
+                    self.time = nextInterventionTime
+                    # carry out intervention update
+                    self.params['intervention'].update()
+                    nextInterventionTime += self.params['intervention'].update_freq
+                else:
+                    if nextSummaryDumpTime >= self.params['FinalTime']:
+                        break
+                    # Dump summary data
+                    self.time = nextSummaryDumpTime
+                    self.run_params['summary_dump'].append(
+                        (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))
+                    nextSummaryDumpTime += self.params['SummaryOutputFreq']
+            else:
+                if nextTime > self.params['FinalTime']:
+                    break
+                # Carry out event
+                self.time = nextTime
+                self.event_handler.do_event(event_type, hostID, self.all_hosts)
+                if self.params['UpdateOnAllEvents'] is True:
+                    self.params['intervention'].update()
 
         self.run_params['summary_dump'].append(
             (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))
@@ -177,7 +205,7 @@ class Simulator:
             print("Run {0} of {1} complete.  ".format(iteration+1, self.params['NIterations']) +
                   "Time taken: {0:.3f} seconds.".format(end_time - start_time), end="\n")
 
-        return (all_hosts, self.run_params)
+        return (self.all_hosts, self.run_params)
 
     def output_run_data(self, all_hosts, run_params, iteration=0):
         outputdata.output_data_hosts(all_hosts, self.params, iteration=iteration)

@@ -177,6 +177,68 @@ def test_kernel():
     return test_passed
 
 
+def test_continuous_removal(nruns=1000, otherOptions=None):
+    """
+    -   Setup simulator to match a preset Webidemics configuration
+    -   Match I->R rate such that half comes from continuous removal intervention
+    -   Run simulator N times
+    -   Compare distribution of final sizes using scipy.stats.anderson_ksamp
+    """
+
+    # Setup Webidemics
+    simulator.config.gen_rand_landscape("test/randomHosts1000.txt", 1000, fixed_infs=[0, 1])
+
+    subprocess.run(["test/Webidemics/WebidemicsTest.exe",
+                    "hostLocs=test/randomHosts1000.txt",
+                    "outStub=test/cont_removal_test_output",
+                    "numIts="+str(nruns)], stdout=subprocess.DEVNULL)
+
+    # Setup simulator
+    params = simulator.config.read_config_file("test/cont_removal_test.ini")
+    params['NIterations'] = nruns
+
+    if otherOptions is not None:
+        addOtherOptions(params, otherOptions)
+
+    test_sim = simulator.Simulator(params)
+    test_sim.setup(silent=True)
+
+    Webidemics_final_rs = []
+    test_sim_final_rs = []
+
+    for i in range(nruns):
+        all_hosts, run_params = test_sim.run_epidemic(i)
+        test_sim_final_rs.append(run_params['summary_dump'][-1][1][0]['R'] +
+                                 run_params['summary_dump'][-1][1][0]['Culled'])
+
+        with open("test/cont_removal_test_output_end_"+str(i)+".txt", "r") as f:
+            line = f.readline()
+            Webidemics_final_rs.append(int(line.split()[5]))
+
+    bins = np.linspace(0, 1000, 100)
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax1.hist(test_sim_final_rs, bins, alpha=0.5, label="Simulator", normed=True)
+    ax1.hist(Webidemics_final_rs, bins, alpha=0.5, label="Webidemics", normed=True)
+    ax1.legend(loc="upper right")
+    ax1.set_xlabel("Final Number Removed")
+    ax1.set_ylabel("Probability")
+    fig.savefig("test/cont_removal_test_finalSizeDistrib", dpi=300)
+
+    test = anderson_ksamp([test_sim_final_rs, Webidemics_final_rs])
+
+    print(test)
+
+    for f in glob.glob("test/cont_removal_test_output*"):
+        os.remove(f)
+
+    if test[0] > test[1][1]:
+        return False
+    else:
+        return True
+
+
 def addOtherOptions(params, otherOptions):
     for pair in otherOptions:
         key, val = pair.split("=")
@@ -207,6 +269,9 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--NonSpatial_nRuns",
                         help="Number of runs to carry out in non-spatial test.", default=10000,
                         type=int)
+    parser.add_argument("-c", "--Cont_nRuns",
+                        help="Number of runs to carry out in continuous removal test.",
+                        default=1000, type=int)
     parser.add_argument("-o", "--otherOptions", help="Further key=val pairs to pass to params.",
                         nargs="*", default=None, type=str)
     args = parser.parse_args()
@@ -236,3 +301,11 @@ if __name__ == "__main__":
             print("...test_spatial PASSED")
         else:
             print("...test_spatial FAILED")
+
+    if 4 in test_list or 0 in test_list:
+        print("Running test_continuous_removal...")
+        test4_result = test_continuous_removal(args.Cont_nRuns, args.otherOptions)
+        if test4_result is True:
+            print("...test_continuous_removal PASSED")
+        else:
+            print("...test_continuous_removal FAILED")

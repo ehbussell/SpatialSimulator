@@ -35,17 +35,32 @@ class RateHandler:
         else:
             raise ValueError("Invalid rate structure - advance events!")
 
-        self.all_rates = [self.inf_rates, self.adv_rates]
         self.event_types = ["Infection", "Advance"]
+        self.all_rates = {"Infection": self.inf_rates, "Advance": self.adv_rates}
+
+        self.n_types = range(len(self.event_types))
+
+    def add_rate_struct(self, event_type, size, structure="ratesum"):
+        if event_type in self.all_rates:
+            raise ValueError("Event type already exists!")
+
+        self.event_types.append(event_type)
+        rate_structure = RateSum(size)
+        rate_structure.zero_rates()
+        self.all_rates[event_type] = rate_structure
+
+        self.parent_sim.rate_factor.append(1)
 
     def get_total_rate(self):
-        total_rate = np.sum([self.parent_sim.rate_factor[i]*rate.get_total_rate()
-                             for i, rate in enumerate(self.all_rates)])
+        total_rate = np.sum([self.parent_sim.rate_factor[i] *
+                             self.all_rates[rate_type].get_total_rate()
+                             for i, rate_type in enumerate(self.event_types)])
         return total_rate
 
     def get_next_event(self):
-        total_rates = [self.parent_sim.rate_factor[i]*rate.get_total_rate()
-                       for i, rate in enumerate(self.all_rates)]
+        total_rates = [self.parent_sim.rate_factor[i] *
+                       self.all_rates[rate_type].get_total_rate()
+                       for i, rate_type in enumerate(self.event_types)]
         total_rate = np.sum(total_rates)
         if total_rate < 10e-10:
             return (total_rate, None, None)
@@ -58,7 +73,7 @@ class RateHandler:
             group_rate = total_rates[i]
             if select_rate < cumulative_rate + group_rate:
                 return (total_rate, self.event_types[i],
-                        self.all_rates[i].select_event(
+                        self.all_rates[self.event_types[i]].select_event(
                             (select_rate - cumulative_rate)/self.parent_sim.rate_factor[i]))
             else:
                 cumulative_rate += group_rate
@@ -66,21 +81,11 @@ class RateHandler:
         return (total_rate, None, None)
 
     def zero_rates(self):
-        for rate in self.all_rates:
-            rate.zero_rates()
+        for event_type in self.event_types:
+            self.all_rates[event_type].zero_rates()
 
     def insert_rate(self, hostID, rate, rate_type):
-        if rate_type == "Infection":
-            self.all_rates[0].insert_rate(hostID, rate)
-        elif rate_type == "Advance":
-            self.all_rates[1].insert_rate(hostID, rate)
-        else:
-            raise ValueError("Unrecognised event type")
+        return self.all_rates[rate_type].insert_rate(hostID, rate)
 
     def get_rate(self, hostID, rate_type):
-        if rate_type == "Infection":
-            return self.all_rates[0].get_rate(hostID)
-        elif rate_type == "Advance":
-            return self.all_rates[1].get_rate(hostID)
-        else:
-            raise ValueError("Unrecognised event type")
+        return self.all_rates[rate_type].get_rate(hostID)

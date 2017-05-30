@@ -41,6 +41,17 @@ default_config = OrderedDict([
                                    "ratesum, rateinterval, ratetree, rateCR",
                                    str)),
     ])),
+    ('Interventions', OrderedDict([
+        ('InterventionScript', (False, None, "Intervention module script.  Must include "
+                                "create_interventions function that returns an intervention class",
+                                str)),
+        ('InterventionUpdateFrequency', (False, 0, "How often to carry out intervention update.",
+                                         float)),
+        ('UpdateOnAllEvents', (False, False, "Whether or not to update the intervention class "
+                               "after every event.", bool)),
+        ('ContinuousRemovalRate', (False, 0.0, "Rate at which infected hosts are culled.",
+                                   float)),
+    ])),
 ])
 
 
@@ -113,7 +124,7 @@ def read_hosts(filename="hosts.txt"):
 
         for i in range(nhosts):
             x, y, state, reg = f.readline().split()
-            all_hosts.append(Host(float(x), float(y), state, int(reg)))
+            all_hosts.append(Host(float(x), float(y), state, int(reg), i))
 
     return all_hosts
 

@@ -1,10 +1,11 @@
 class Host(object):
 
-    def __init__(self, x, y, state=None, reg=0):
+    def __init__(self, x, y, state=None, reg=0, hostID=None):
         self.x = x
         self.y = y
         self.state = state
         self.reg = reg
+        self.hostID = hostID
 
         self.jump_times = {str(state): 0.0}
 
