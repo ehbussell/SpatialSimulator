@@ -222,6 +222,20 @@ def run_epidemics(params):
         run_sim.output_run_data(all_hosts, run_params, iteration=iteration)
 
 
+def main(configFile="config.ini", keyFile=False, defaultConfig=None):
+    if keyFile is True:
+        config.write_keyfile()
+        print("KeyFile generated.")
+
+    if defaultConfig is not None:
+        config.write_default_config(defaultConfig)
+        print("Default config file generated.")
+
+    if keyFile is False and defaultConfig is None:
+        params = config.read_config_file(filename=configFile)
+        run_epidemics(params)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
                 description=__doc__,
@@ -238,14 +252,4 @@ if __name__ == "__main__":
                         "Optionally specify filename.")
     args = parser.parse_args()
 
-    if args.keyFile is True:
-        config.write_keyfile()
-        print("KeyFile generated.")
-
-    if args.defaultConfig is not None:
-        config.write_default_config(args.defaultConfig)
-        print("Default config file generated.")
-
-    if args.keyFile is False and args.defaultConfig is None:
-        params = config.read_config_file(filename=args.configFile)
-        run_epidemics(params)
+    main(**vars(args))
