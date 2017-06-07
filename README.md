@@ -18,11 +18,12 @@ Project creating individual based simulator for running epidemics.  Also investi
   * Allow for intervention arguments e.g. budgets - not sure how best to implement this.
 4. Output should include log file or similar that details configuration options used, how simulator called, code version etc.
 5. Improve output options
-  * Turn on/off file output for each type? (host, event, summary)
-  * Work out how best to do python data handling
+  * ~~Turn on/off file output for each type? (host, event, summary)~~
+  * ~~Return data as Pandas data frames~~
+  * Output filename stub
 
 
 ## Log
 
 ### 07/06/2017
-Added main function to simulator module - this is now what is called if invoked from the command line.  This way when invoked from within python, functionality is the same.
+Added main function to simulator module - this is now what is called if invoked from the command line.  This way when invoked from within python, functionality is the same.  Have also implemented return of data when invoked from python.  Have used pandas data frames to hold data.

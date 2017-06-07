@@ -208,18 +208,19 @@ class Simulator:
         return (self.all_hosts, self.run_params)
 
     def output_run_data(self, all_hosts, run_params, iteration=0):
-        outputdata.output_data_hosts(all_hosts, self.params, iteration=iteration)
-        outputdata.output_data_events(run_params, iteration=iteration)
-        if self.params['SummaryOutputFreq'] != 0:
-            outputdata.output_data_summary(self.params, run_params, iteration=iteration)
+        run_data = outputdata.output_all_run_data(self, all_hosts, run_params, iteration)
+        return run_data
 
 
 def run_epidemics(params):
+    all_data = []
     run_sim = Simulator(params)
     run_sim.setup()
     for iteration in range(params['NIterations']):
         all_hosts, run_params = run_sim.run_epidemic(iteration)
-        run_sim.output_run_data(all_hosts, run_params, iteration=iteration)
+        all_data.append(run_sim.output_run_data(all_hosts, run_params, iteration=iteration))
+
+    return all_data
 
 
 def main(configFile="config.ini", keyFile=False, defaultConfig=None):
@@ -233,7 +234,9 @@ def main(configFile="config.ini", keyFile=False, defaultConfig=None):
 
     if keyFile is False and defaultConfig is None:
         params = config.read_config_file(filename=configFile)
-        run_epidemics(params)
+        all_data = run_epidemics(params)
+
+        return all_data
 
 
 if __name__ == "__main__":

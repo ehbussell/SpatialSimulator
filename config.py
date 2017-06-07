@@ -22,12 +22,20 @@ default_config = OrderedDict([
     ])),
     ('Simulation', OrderedDict([
         ('FinalTime', (True, 10.0, "Time to stop the simulation.", float)),
-        ('SummaryOutputFreq', (True, 0.2, "How often to output region summary"
-                               " to output file.", float)),
         ('HostFile', (True, "hosts.txt", "Name of file containing host locations.", str)),
         ('NIterations', (False, 1, "Number of individual simulations to run",
                          int)),
         ('NRegions', (False, 1, "Number of distinct regions.", int)),
+    ])),
+    ('Output', OrderedDict([
+        ('OutputHostData', (False, True, "Whether to output transition times for each host.",
+                            bool)),
+        ('OutputEventData', (False, True, "Whether to output all individual event details.",
+                             bool)),
+        ('SummaryOutputFreq', (True, 0.2, "How often to output region summary to output file.  "
+                               "Set to zero to suppress output.", float)),
+        ('OutputFiles', (False, True, "Whether to output data to files.  "
+                         "If False only python objects are returned.", bool)),
     ])),
     ('Optimisation', OrderedDict([
         ('CacheKernel', (False, False, "Whether or not to cache the full "
