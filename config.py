@@ -1,3 +1,7 @@
+"""Configuration options for the simulation.
+
+default_config gives the sections and keys for the KEYFILE, with text descriptions."""
+
 import configparser
 import os
 import errno
@@ -32,10 +36,11 @@ default_config = OrderedDict([
                             bool)),
         ('OutputEventData', (False, True, "Whether to output all individual event details.",
                              bool)),
-        ('SummaryOutputFreq', (True, 0.2, "How often to output region summary to output file.  "
+        ('SummaryOutputFreq', (True, 0.2, "How often to output region summary.  "
                                "Set to zero to suppress output.", float)),
         ('OutputFiles', (False, True, "Whether to output data to files.  "
                          "If False only python objects are returned.", bool)),
+        ('OutputFileStub', (False, "output", "File path stub for output files", str)),
     ])),
     ('Optimisation', OrderedDict([
         ('CacheKernel', (False, False, "Whether or not to cache the full "

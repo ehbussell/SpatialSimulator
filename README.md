@@ -20,10 +20,14 @@ Project creating individual based simulator for running epidemics.  Also investi
 5. Improve output options
   * ~~Turn on/off file output for each type? (host, event, summary)~~
   * ~~Return data as Pandas data frames~~
-  * Output filename stub
+  * ~~Output filename stub~~
+  * ~~Make output to file optional - create pandas df then export to csv if necessary~~
 
 
 ## Log
+
+### 08/06/2017
+Updated output functions - creates dataframe and then saves to csv if the key 'OutputFiles' is True.  Also handles file output stub properly.
 
 ### 07/06/2017
 Added main function to simulator module - this is now what is called if invoked from the command line.  This way when invoked from within python, functionality is the same.  Have also implemented return of data when invoked from python.  Have used pandas data frames to hold data.
