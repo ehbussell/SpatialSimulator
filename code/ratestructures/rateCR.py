@@ -1,7 +1,7 @@
 import numpy as np
 from namedlist import namedlist
-from rateCRgroup import RateCRGroup
-from ratetree import RateTree
+from .rateCRgroup import RateCRGroup
+from .ratetree import RateTree
 
 
 IndexStorage = namedlist("IndexStorage", "iGroup", default=None)

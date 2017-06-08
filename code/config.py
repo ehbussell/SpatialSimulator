@@ -6,7 +6,7 @@ import configparser
 import os
 import errno
 from collections import OrderedDict
-from host import Host
+from .host import Host
 import numpy as np
 
 default_config = OrderedDict([

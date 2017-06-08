@@ -1,14 +1,13 @@
-import config
+from code import config
+from code import outputdata
+from code.eventhandling import EventHandler
+from code.ratehandling import RateHandler
+from code.host import Host
 import argparse
-import eventhandling
-from eventhandling import EventHandler
-import outputdata
 import copy
 import importlib
 import time as time_mod
 import numpy as np
-from host import Host
-from ratehandling import RateHandler
 
 
 def kernel_exp(kernel_param):

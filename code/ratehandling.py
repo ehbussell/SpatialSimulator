@@ -1,8 +1,8 @@
 import numpy as np
-from ratesum import RateSum
-from rateinterval import RateInterval
-from ratetree import RateTree
-from rateCR import RateCR
+from .ratestructures.ratesum import RateSum
+from .ratestructures.rateinterval import RateInterval
+from .ratestructures.ratetree import RateTree
+from .ratestructures.rateCR import RateCR
 
 
 class RateHandler:
