@@ -1,8 +1,8 @@
-from code import config
-from code import outputdata
-from code.eventhandling import EventHandler
-from code.ratehandling import RateHandler
-from code.host import Host
+from IndividualSimulator.code import config
+from IndividualSimulator.code import outputdata
+from IndividualSimulator.code import hosts
+from IndividualSimulator.code.eventhandling import EventHandler
+from IndividualSimulator.code.ratehandling import RateHandler
 import argparse
 import copy
 import importlib
@@ -64,7 +64,9 @@ class Simulator:
         start_time = time_mod.time()
 
         # Read in hosts
-        self.params['init_hosts'] = config.read_hosts(self.params['HostFile'])
+        self.params['init_hosts'] = hosts.read_host_files(self.params['HostPosFile'],
+                                                          self.params['InitCondFile'],
+                                                          self.params['RegionFile'])
         self.params['nhosts'] = len(self.params['init_hosts'])
 
         # Setup

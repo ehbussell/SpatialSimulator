@@ -6,7 +6,6 @@ import configparser
 import os
 import errno
 from collections import OrderedDict
-from .host import Host
 import numpy as np
 
 default_config = OrderedDict([
@@ -26,7 +25,11 @@ default_config = OrderedDict([
     ])),
     ('Simulation', OrderedDict([
         ('FinalTime', (True, 10.0, "Time to stop the simulation.", float)),
-        ('HostFile', (True, "hosts.txt", "Name of file containing host locations.", str)),
+        ('HostPosFile', (True, "hosts.txt", "Name of file containing host locations.", str)),
+        ('InitCondFile', (True, "hosts_init.txt", "Name of file containing initial host states.",
+                          str)),
+        ('RegionFile', (False, None, "Name of file containing region name for each"
+                        " host.  If not specified no region based data is produced", str)),
         ('NIterations', (False, 1, "Number of individual simulations to run",
                          int)),
         ('NRegions', (False, 1, "Number of distinct regions.", int)),
@@ -127,41 +130,6 @@ def read_config_file(filename="config.ini"):
                     return_dict[key] = def_val[1]
 
     return return_dict
-
-
-def read_hosts(filename="hosts.txt"):
-    with open(filename, "r") as f:
-        nhosts = int(f.readline())
-
-        all_hosts = []
-
-        for i in range(nhosts):
-            x, y, state, reg = f.readline().split()
-            all_hosts.append(Host(float(x), float(y), state, int(reg), i))
-
-    return all_hosts
-
-
-def gen_rand_landscape(filename="hosts.txt", nhosts=100, rand_infs=0, fixed_infs=None):
-    all_x = np.random.random_sample(nhosts)
-    all_y = np.random.random_sample(nhosts)
-
-    host_list = list(range(nhosts))
-    infected = []
-
-    if fixed_infs is not None:
-        infected = fixed_infs
-        host_list = [x for x in host_list if x not in infected]
-
-    infected += list(np.random.choice(host_list, rand_infs, replace=False))
-
-    with open(filename, "w") as f:
-        f.write(str(nhosts) + "\n")
-        for i in range(nhosts):
-            if i in infected:
-                f.write(str(all_x[i]) + " " + str(all_y[i]) + " I 0\n")
-            else:
-                f.write(str(all_x[i]) + " " + str(all_y[i]) + " S 0\n")
 
 
 def verify_params(params):
