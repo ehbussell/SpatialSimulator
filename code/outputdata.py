@@ -36,17 +36,19 @@ def output_data_hosts(all_hosts, params, file_stub="output", iteration=0):
 
     filename = file_stub + "_hosts_" + str(iteration) + ".csv"
 
-    col_names = ["hostID", "posX", "posY"] + ["timeEnter"+state for state in states]
+    col_names = ["hostID", "posX", "posY", "region"] + ["timeEnter"+state for state in states]
     data_dict = {key: [] for key in col_names}
 
     for i in range(nhosts):
         host_id = all_hosts[i].hostID
         x = all_hosts[i].x
         y = all_hosts[i].y
+        region = all_hosts[i].reg
 
         data_dict['hostID'].append(host_id)
         data_dict['posX'].append(x)
         data_dict['posY'].append(y)
+        data_dict['region'].append(region)
 
         for state in states:
             jump_time = all_hosts[i].jump_times.get(state, -1.0)
