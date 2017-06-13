@@ -11,7 +11,7 @@ import time as time_mod
 import numpy as np
 
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 
 def kernel_exp(kernel_param):
@@ -249,6 +249,7 @@ def main(configFile="config.ini", keyFile=False, defaultConfig=None, params_opti
 
         config.check_params_valid(params)
 
+        params['call_params'] = copy.deepcopy(params)
         params['call_config_file'] = configFile
         params['call_module'] = str(modu)
         params['call_time'] = time_mod.strftime("%a, %d %b %Y %H:%M:%S", time_mod.localtime())

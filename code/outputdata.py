@@ -1,6 +1,8 @@
 """Methods for outputting run data from the simulation."""
 
+from . import config
 import inspect
+import io
 import pandas as pd
 
 
@@ -112,8 +114,11 @@ def output_log_file(params):
     log_text += "Run: " + params['call_time'] + "\n\n"
     log_text += "Configuration File Used\n" + "#"*35 + "\n\n"
 
-    with open(params['call_config_file'], "r") as f:
-        log_text += f.read()
+    parser = config.get_parser_from_params(params['call_params'])
+    config_txt = io.StringIO()
+    parser.write(config_txt)
+
+    log_text += config_txt.getvalue()
 
     filename = params['OutputFileStub'] + ".log"
 

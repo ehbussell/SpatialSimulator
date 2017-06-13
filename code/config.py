@@ -147,6 +147,18 @@ def read_config_string(config_string):
     return return_dict
 
 
+def get_parser_from_params(params):
+    parser = configparser.ConfigParser()
+    parser.optionxform = str
+
+    for section in default_config:
+        parser.add_section(section)
+        for key in default_config[section]:
+            parser[section][key] = str(params[key])
+
+    return parser
+
+
 def check_params_valid(params):
     # TODO Should somehow check all necessary info is present i.e. AdvRates are correctly specified
     #   even though these keys are optional
