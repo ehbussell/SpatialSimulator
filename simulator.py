@@ -6,8 +6,12 @@ from IndividualSimulator.code.ratehandling import RateHandler
 import argparse
 import copy
 import importlib
+import inspect
 import time as time_mod
 import numpy as np
+
+
+__version__ = "0.0.1"
 
 
 def kernel_exp(kernel_param):
@@ -224,7 +228,10 @@ def run_epidemics(params):
     return all_data
 
 
-def main(configFile="config.ini", keyFile=False, defaultConfig=None):
+def main(configFile="config.ini", keyFile=False, defaultConfig=None, params_options=None):
+    frame = inspect.stack()[1]
+    modu = inspect.getmodule(frame[0])
+
     if keyFile is True:
         config.write_keyfile()
         print("KeyFile generated.")
@@ -235,7 +242,20 @@ def main(configFile="config.ini", keyFile=False, defaultConfig=None):
 
     if keyFile is False and defaultConfig is None:
         params = config.read_config_file(filename=configFile)
+        if params_options is not None:
+            for key, value in params_options.items():
+                # TODO Should check that these are valid additions
+                params[key] = value
+
+        config.check_params_valid(params)
+
+        params['call_config_file'] = configFile
+        params['call_module'] = str(modu)
+        params['call_time'] = time_mod.strftime("%a, %d %b %Y %H:%M:%S", time_mod.localtime())
+        params['call_version'] = __version__
         all_data = run_epidemics(params)
+
+        outputdata.output_log_file(params)
 
         return all_data
 

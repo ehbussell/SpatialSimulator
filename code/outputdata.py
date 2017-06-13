@@ -1,5 +1,6 @@
 """Methods for outputting run data from the simulation."""
 
+import inspect
 import pandas as pd
 
 
@@ -102,3 +103,19 @@ def output_data_summary(params, run_params, file_stub="output", iteration=0):
             data_dict['Region'+str(region)].to_csv(filename, index=False)
 
     return data_dict
+
+
+def output_log_file(params):
+    log_text = "Individual Simulator Log File\n" + "#"*35 + "\n\n"
+    log_text += "Simulator called from: " + params['call_module'] + "\n\n"
+    log_text += "Version: " + params['call_version'] + "\n\n"
+    log_text += "Run: " + params['call_time'] + "\n\n"
+    log_text += "Configuration File Used\n" + "#"*35 + "\n\n"
+
+    with open(params['call_config_file'], "r") as f:
+        log_text += f.read()
+
+    filename = params['OutputFileStub'] + ".log"
+
+    with open(filename, "w") as f:
+        f.write(log_text)

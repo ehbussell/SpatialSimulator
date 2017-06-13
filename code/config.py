@@ -61,7 +61,7 @@ default_config = OrderedDict([
         ('InterventionScript', (False, None, "Intervention module script.  Must include "
                                 "create_interventions function that returns an intervention class",
                                 str)),
-        ('InterventionUpdateFrequency', (False, 0, "How often to carry out intervention update.",
+        ('InterventionUpdateFrequency', (False, 0.0, "How often to carry out intervention update.",
                                          float)),
         ('UpdateOnAllEvents', (False, False, "Whether or not to update the intervention class "
                                "after every event.", bool)),
@@ -132,9 +132,14 @@ def read_config_file(filename="config.ini"):
     return return_dict
 
 
-def verify_params(params):
-    # TODO code to verify a parameter dictionary is complete
-    # Option to fill in default values for missing keys with/without warning
-    # Should somehow check all necessary info is present i.e. AdvRates are correctly specified
+def check_params_valid(params):
+    # TODO Should somehow check all necessary info is present i.e. AdvRates are correctly specified
     #   even though these keys are optional
-    pass
+    for section in default_config:
+        for key, def_val in default_config[section].items():
+            if key in params:
+                if isinstance(params[key], def_val[3]) is False and params[key] is not None:
+                    raise TypeError("Incorrect type for key {0}.  Expected: {1}, Found: "
+                                    "{2}".format(key, def_val[3], type(params[key])))
+            else:
+                raise KeyError("Missing parameter key {0}".format(key))
