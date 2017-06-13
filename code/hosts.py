@@ -18,10 +18,11 @@ class Host(object):
         self.y = y
         self.reg = reg
         self.hostID = hostID
+        self.jump_times = {}
 
         if state is not None:
             self.state = state
-            self.jump_times = {str(state): 0.0}
+            self.jump_times[str(state)] = 0.0
 
     def __repr__(self):
         repr_str = "Host(" + str(self.x) + ", " + str(self.y) + ", '"
@@ -48,7 +49,7 @@ def read_host_file(filename):
 
         for i in range(nhosts):
             x, y = f.readline().split()
-            all_hosts.append(Host(float(x), float(y), i))
+            all_hosts.append(Host(float(x), float(y), hostID=i))
 
     return all_hosts
 
