@@ -11,7 +11,7 @@ import time as time_mod
 import numpy as np
 
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 
 def kernel_exp(kernel_param):

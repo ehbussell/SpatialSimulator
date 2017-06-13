@@ -100,14 +100,7 @@ def write_default_config(filename="config.ini"):
             f.write("\n")
 
 
-def read_config_file(filename="config.ini"):
-    parser = configparser.ConfigParser()
-    if os.path.exists(filename):
-        parser.read(filename)
-    else:
-        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),
-                                filename)
-
+def read_parser(parser):
     return_dict = {}
 
     for section in default_config:
@@ -128,6 +121,28 @@ def read_config_file(filename="config.ini"):
                     raise configparser.NoOptionError(key, section)
                 else:
                     return_dict[key] = def_val[1]
+
+    return return_dict
+
+
+def read_config_file(filename="config.ini"):
+    parser = configparser.ConfigParser()
+    if os.path.exists(filename):
+        parser.read(filename)
+    else:
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),
+                                filename)
+
+    return_dict = read_parser(parser)
+
+    return return_dict
+
+
+def read_config_string(config_string):
+    parser = configparser.ConfigParser()
+    parser.read_string(config_string)
+
+    return_dict = read_parser(parser)
 
     return return_dict
 

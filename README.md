@@ -23,6 +23,7 @@ For a simple example see the example/ folder.
 * README.md This document
 * simulator.py Main module for simulator project.  Can be imported or run from command line
 * code/ Directory containing majority of code for the simulator
+* example/ Basic example of simulator usage
 * test/ Testing code
 * utilities/ Helpful modules for using the simulator
 
@@ -30,16 +31,20 @@ For a simple example see the example/ folder.
 1. Documentation
   * Basic usage instructions within README
   * Example folder containing simple example with all necessary config files
+  * Sphinx documentation
 1. Improve intervention handling
   * Allow for intervention arguments e.g. budgets - not sure how best to implement this.
-1. Output should include log file or similar that details configuration options used, how simulator called, code version etc.
-  * configuration setup
-  * how called
-  * code version
+1. Testing
+  * Fix calls to old simulator references
+  * Implement unit tests
+  * Make all tests part of unittest module
 
 
 ## Major Change Log
 *(For more details see SVN log)*
+
+### 13/06/2017
+Log file now produced on output.  \_\_init\_\_ files so that functions as project.  __Note this will have broken some previous imports.__  Changed functionality of config parser so can take a string as well as a file.  Added utilities for reading output files and parameters.  BUGFIX in creating hosts - was not adding hostID.
 
 ### 12/06/2017
 Host input changed significantly.  Now takes multiple files: a hosts.txt file detailing host positions, a hosts_init.txt file giving initial states, and optionally a hosts_regions.txt file giving the region for each host.  Also added some utilities for creating these files.
