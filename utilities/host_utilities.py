@@ -29,6 +29,28 @@ def create_rand_landscape(filename, nhosts, x_limits=[0, 1], y_limits=[0, 1]):
             f.write(str(all_x[i]) + " " + str(all_y[i]) + "\n")
 
 
+def create_grid_landscape(filename, host_layout=[10, 10], x_spacing=1, y_spacing=1):
+    """Create a host landscape with hosts positioned on a grid.
+
+    Arguments:
+        filename:       Name of file to which host data will be printed
+        host_layout:    List giving dimensions of host grid [x, y].  Rows will have x hosts on
+                        and columns y hosts
+        x_spacing:      Distance between hosts in x direction
+        y_spacing:      Distance between hosts in y direction
+    """
+
+    x_vals = np.array(range(host_layout[0])) * x_spacing
+    y_vals = np.array(range(host_layout[1])) * y_spacing
+    nhosts = host_layout[0] * host_layout[1]
+
+    with open(filename, "w") as f:
+        f.write(str(nhosts) + "\n")
+        for y_val in y_vals:
+            for x_val in x_vals:
+                f.write(str(x_val) + " " + str(y_val) + "\n")
+
+
 def create_rand_initial_conditions(filename, nhosts, rand_infs=0, fixed_infs=None):
     """Create a initial conditions files, detailing the initial state for each host.
 
