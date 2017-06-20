@@ -25,6 +25,12 @@ def output_all_run_data(parent_sim, all_hosts, run_params, iteration=0):
                                            file_stub=filestub)
         return_data['summary_data'] = summary_data
 
+    if parent_sim.params['InterventionScripts'] is not None:
+        control_data = parent_sim.intervention_handler.output(iteration=iteration,
+                                                              file_stub=filestub)
+
+        return_data['control_data'] = control_data
+
     return return_data
 
 

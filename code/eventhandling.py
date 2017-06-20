@@ -21,15 +21,15 @@ class EventHandler:
             [all_hosts[i].x-all_hosts[hostID].x,
              all_hosts[i].y-all_hosts[hostID].y]))
 
-    def do_event(self, event_type, hostID, all_hosts):
+    def do_event(self, event_type, eventID, all_hosts):
         if event_type == "Infection" or event_type == "Advance":
-            self.do_event_standard(hostID, all_hosts)
+            self.do_event_standard(eventID, all_hosts)
         elif event_type == "Cull":
-            self.do_event_cull(hostID, all_hosts)
-        elif event_type == "Intervention":
-            self.parent_sim.params['intervention'].action(hostID, all_hosts)
+            self.do_event_cull(eventID, all_hosts)
+        elif event_type.startswith("Intervention"):
+            self.parent_sim.intervention_handler.action(event_type, eventID, all_hosts)
         else:
-            raise ValueError("Unrecognised event type!")
+            raise ValueError("Unrecognised event type: {}!".format(event_type))
 
     def do_event_standard(self, hostID, all_hosts):
         old_state = all_hosts[hostID].state

@@ -32,16 +32,21 @@ For a simple example see the example/ folder.
   * Basic usage instructions within README
   * Example folder containing simple example with all necessary config files
   * Sphinx documentation
-1. Improve intervention handling
-  * Allow for intervention arguments e.g. budgets - not sure how best to implement this.
 1. Testing
   * Fix calls to old simulator references
   * Implement unit tests
   * Make all tests part of unittest module
+  * Test intervention handling
 
 
 ## Major Change Log
 *(For more details see SVN log)*
+
+### 20/06/2017
+Major changes to handling of interventions.  Each intervention script now provides an Intervention class with action and update methods, and optionally an output method giving a pandas data frame.  The class must also contain the following members:
+* update_freq giving the frequency at which updates should be carried out
+* type CONTINUOUS if continuous rates are required
+* rate_size size of rate structure required if type is CONTINUOUS
 
 ### 13/06/2017
 Log file now produced on output.  \_\_init\_\_ files so that functions as project.  __Note this will have broken some previous imports.__  Changed functionality of config parser so can take a string as well as a file.  Added utilities for reading output files and parameters.  BUGFIX in creating hosts - was not adding hostID.

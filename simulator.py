@@ -1,17 +1,17 @@
 from IndividualSimulator.code import config
-from IndividualSimulator.code import outputdata
 from IndividualSimulator.code import hosts
+from IndividualSimulator.code import outputdata
 from IndividualSimulator.code.eventhandling import EventHandler
+from IndividualSimulator.code.interventionhandling import InterventionHandler
 from IndividualSimulator.code.ratehandling import RateHandler
 import argparse
 import copy
-import importlib
 import inspect
-import time as time_mod
 import numpy as np
+import time as time_mod
 
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 
 def kernel_exp(kernel_param):
@@ -73,7 +73,7 @@ class Simulator:
                                                           self.params['RegionFile'])
         self.params['nhosts'] = len(self.params['init_hosts'])
 
-        # Setup
+        # Setup function to get next state from current state
         states = list(self.params['Model'])
 
         def next_state_func(current_state):
@@ -87,6 +87,7 @@ class Simulator:
 
         self.params['next_state'] = next_state_func
 
+        # Kernel setup
         if self.params['KernelType'] == "EXPONENTIAL":
             self.params['kernel'] = kernel_exp(self.params['KernelScale'])
         elif self.params['KernelType'] == "NONSPATIAL":
@@ -123,6 +124,11 @@ class Simulator:
                         if self.params['init_hosts'][j].state == "S":
                             self.params['init_inf_rates'][j] += self.event_handler.kernel(j, i)
 
+        self.rate_factor = [self.params['InfRate'], 1]
+
+        # Intervention setup
+        self.intervention_handler = InterventionHandler(self)
+
         end_time = time_mod.time()
 
         if silent is False:
@@ -132,6 +138,7 @@ class Simulator:
     def run_epidemic(self, iteration=0, silent=False):
         start_time = time_mod.time()
 
+        # Setup run parameters to keep track of iteration
         self.run_params = {}
         self.run_params['all_events'] = []
         self.run_params['region_summary'] = copy.deepcopy(self.params['init_region_summary'])
@@ -139,9 +146,10 @@ class Simulator:
 
         self.all_hosts = copy.deepcopy(self.params['init_hosts'])
 
-        self.rate_factor = [self.params['InfRate'], 1]
+        # Zero all rates
         self.rate_handler.zero_rates()
 
+        # Initialise rates from setup
         for i in range(self.params['nhosts']):
             self.rate_handler.insert_rate(i, self.params['init_inf_rates'][i], "Infection")
             self.rate_handler.insert_rate(i, self.params['init_adv_rates'][i], "Advance")
@@ -154,18 +162,11 @@ class Simulator:
         else:
             nextSummaryDumpTime = np.inf
 
-        # Setup Interventions
-        if self.params['InterventionScript'] is not None:
-            # import and create intervention class
-            intervention_module = importlib.import_module(self.params['InterventionScript'])
-            self.params['intervention'] = intervention_module.create_interventions(self)
-        else:
-            self.params['intervention'] = None
+        # Initialise interventions
+        self.intervention_handler.initialise_rates(self.all_hosts)
 
-        if self.params['intervention'] is None:
-            nextInterventionTime = np.inf
-        else:
-            nextInterventionTime = self.time + self.params['intervention'].update_freq
+        # Set time until first intervention
+        nextInterventionTime = self.intervention_handler.next_intervention_time
 
         # Run gillespie loop
         while True:
@@ -182,8 +183,8 @@ class Simulator:
                         break
                     self.time = nextInterventionTime
                     # carry out intervention update
-                    self.params['intervention'].update()
-                    nextInterventionTime += self.params['intervention'].update_freq
+                    self.intervention_handler.update(self.all_hosts, self.time)
+                    nextInterventionTime = self.intervention_handler.next_intervention_time
                 else:
                     if nextSummaryDumpTime >= self.params['FinalTime']:
                         break
@@ -199,7 +200,8 @@ class Simulator:
                 self.time = nextTime
                 self.event_handler.do_event(event_type, hostID, self.all_hosts)
                 if self.params['UpdateOnAllEvents'] is True:
-                    self.params['intervention'].update()
+                    self.intervention_handler.update_on_event(self.all_hosts, self.time)
+                    nextInterventionTime = self.intervention_handler.next_intervention_time
 
         self.run_params['summary_dump'].append(
             (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))

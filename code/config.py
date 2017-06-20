@@ -58,15 +58,13 @@ default_config = OrderedDict([
                                    str)),
     ])),
     ('Interventions', OrderedDict([
-        ('InterventionScript', (False, None, "Intervention module script.  Must include "
-                                "create_interventions function that returns an intervention class",
-                                str)),
-        ('InterventionUpdateFrequency', (False, 0.0, "How often to carry out intervention update.",
-                                         float)),
-        ('UpdateOnAllEvents', (False, False, "Whether or not to update the intervention class "
+        ('InterventionScripts', (False, None, "Comma separated list of intervention module "
+                                 "scripts.  Each must include Intervention class with required "
+                                 "members.", str)),
+        ('InterventionUpdateFrequencies', (False, None, "Comma separated list specifying how "
+                                           "often to update each intervention module.", str)),
+        ('UpdateOnAllEvents', (False, False, "Whether or not to update the intervention classes "
                                "after every event.", bool)),
-        ('ContinuousRemovalRate', (False, 0.0, "Rate at which infected hosts are culled.",
-                                   float)),
     ])),
 ])
 
