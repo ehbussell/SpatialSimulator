@@ -11,7 +11,7 @@ class InterventionHandler:
 
         if self.parent_sim.params['InterventionScripts'] is not None:
             intervention_scripts = self.parent_sim.params['InterventionScripts'].split(",")
-            intervention_freqs = self.parent_sim.params['InterventionUpdateFrequency'].split(",")
+            intervention_freqs = self.parent_sim.params['InterventionUpdateFrequencies'].split(",")
             for script, freq in zip(intervention_scripts, intervention_freqs):
                 intervention_module = importlib.import_module(script)
                 self.interventions.append(intervention_module.Intervention(
