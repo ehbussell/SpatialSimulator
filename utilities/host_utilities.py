@@ -29,7 +29,8 @@ def create_rand_landscape(filename, nhosts, x_limits=[0, 1], y_limits=[0, 1]):
             f.write(str(all_x[i]) + " " + str(all_y[i]) + "\n")
 
 
-def create_grid_landscape(filename, host_layout=[10, 10], x_spacing=1, y_spacing=1):
+def create_grid_landscape(filename, host_layout=[10, 10], x_spacing=1, y_spacing=1,
+                          llcorner=[0, 0]):
     """Create a host landscape with hosts positioned on a grid.
 
     Arguments:
@@ -38,10 +39,11 @@ def create_grid_landscape(filename, host_layout=[10, 10], x_spacing=1, y_spacing
                         and columns y hosts
         x_spacing:      Distance between hosts in x direction
         y_spacing:      Distance between hosts in y direction
+        llcorner:       [x, y] postion of lower left corner of grid
     """
 
-    x_vals = np.array(range(host_layout[0])) * x_spacing
-    y_vals = np.array(range(host_layout[1])) * y_spacing
+    x_vals = llcorner[0] + np.array(range(host_layout[0])) * x_spacing
+    y_vals = llcorner[1] + np.array(range(host_layout[1])) * y_spacing
     nhosts = host_layout[0] * host_layout[1]
 
     with open(filename, "w") as f:
