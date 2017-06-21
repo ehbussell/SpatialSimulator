@@ -7,12 +7,7 @@ utilities module.
 import numpy as np
 import pandas as pd
 
-config_params = {
-    'nregions': 3,
-    'priorities': [2, 1, 0],
-    'budget': 200,
-    'removal_rate': 1.0,
-}
+config_params = {'budget': 0, 'nregions': 3, 'priorities': [2, 1, 0], 'removal_rate': 1.0}
 
 
 class Intervention:
