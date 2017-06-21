@@ -87,7 +87,8 @@ class InterventionHandler:
 
             filename = file_stub + "_Intervention" + str(i) + "_" + str(iteration) + ".csv"
             if isinstance(intervention_data[-1], pd.DataFrame):
-                intervention_data[-1].to_csv(filename, index=False)
+                if self.parent_sim.params['OutputFiles'] is True:
+                    intervention_data[-1].to_csv(filename, index=False)
             elif intervention_data[-1] is not None:
                 raise TypeError("Intervention output format must be pandas DataFrame!")
 
