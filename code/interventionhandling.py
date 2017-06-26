@@ -14,6 +14,7 @@ class InterventionHandler:
             intervention_freqs = self.parent_sim.params['InterventionUpdateFrequencies'].split(",")
             for script, freq in zip(intervention_scripts, intervention_freqs):
                 intervention_module = importlib.import_module(script)
+                intervention_module = importlib.reload(intervention_module)
                 self.interventions.append(intervention_module.Intervention(
                     float(freq), self.parent_sim.params['init_hosts']))
 
