@@ -31,25 +31,37 @@ class Host(object):
         return repr_str
 
 
-def read_host_files(host_pos_file, init_cond_file, region_file):
-    all_hosts = read_host_file(host_pos_file)
+def read_host_files(host_pos_files, init_cond_files, region_files):
 
-    read_init_cond(all_hosts, init_cond_file)
-    if region_file is not None:
-        read_regions(all_hosts, region_file)
+    assert len(host_pos_files) == len(init_cond_files), "Number of input files do not match!"
+
+    if region_files is not None:
+        region_files = region_files.split(",")
+        assert len(host_pos_files) == len(region_files), "Number of input files do not match!"
+    else:
+        region_files = [None for _ in host_pos_files]
+
+    all_hosts = []
+
+    for i, host_file in enumerate(host_pos_files):
+        hosts = read_host_file(host_file, default_region=i, hostID_start=len(all_hosts))
+        read_init_cond(hosts, init_cond_files[i])
+        if region_files[i] is not None:
+            read_regions(hosts, region_files[i])
+        all_hosts.extend(hosts)
 
     return all_hosts
 
 
-def read_host_file(filename):
+def read_host_file(filename, default_region=0, hostID_start=0):
     with open(filename, "r") as f:
         nhosts = int(f.readline())
 
         all_hosts = []
 
-        for i in range(nhosts):
+        for i in range(hostID_start, hostID_start + nhosts):
             x, y = f.readline().split()
-            all_hosts.append(Host(float(x), float(y), hostID=i))
+            all_hosts.append(Host(float(x), float(y), hostID=i, reg=default_region))
 
     return all_hosts
 

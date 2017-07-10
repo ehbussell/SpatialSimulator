@@ -11,7 +11,7 @@ import numpy as np
 import time as time_mod
 
 
-__version__ = "0.0.8"
+__version__ = "0.0.9"
 
 
 def kernel_exp(kernel_param):
@@ -68,8 +68,8 @@ class Simulator:
         start_time = time_mod.time()
 
         # Read in hosts
-        self.params['init_hosts'] = hosts.read_host_files(self.params['HostPosFile'],
-                                                          self.params['InitCondFile'],
+        self.params['init_hosts'] = hosts.read_host_files(self.params['HostPosFile'].split(","),
+                                                          self.params['InitCondFile'].split(","),
                                                           self.params['RegionFile'])
         self.params['nhosts'] = len(self.params['init_hosts'])
 
