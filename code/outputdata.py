@@ -3,12 +3,18 @@
 from . import config
 import inspect
 import io
+import os
 import pandas as pd
 
 
 def output_all_run_data(parent_sim, all_hosts, run_params, iteration=0):
     return_data = {}
     filestub = parent_sim.params['OutputFileStub']
+
+    if parent_sim.params['OutputFiles'] is True:
+        output_path = os.path.split(filestub)[0]
+        if output_path != "":
+            os.makedirs(output_path, exist_ok=True)
 
     if parent_sim.params['OutputHostData'] is True:
         host_data = output_data_hosts(all_hosts, parent_sim.params, iteration=iteration,
