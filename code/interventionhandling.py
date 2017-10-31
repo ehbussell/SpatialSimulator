@@ -68,7 +68,7 @@ class InterventionHandler:
             else:
                 intervention.update(all_hosts, time)
 
-    def action(self, event_type, eventID, all_hosts):
+    def action(self, event_type, eventID, all_hosts, all_cells):
         """Carry out an action for a continuous intervention."""
 
         int_num = int(event_type.split("_")[1])

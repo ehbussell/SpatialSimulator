@@ -7,7 +7,7 @@ import os
 import pandas as pd
 
 
-def output_all_run_data(parent_sim, all_hosts, run_params, iteration=0):
+def output_all_run_data(parent_sim, all_hosts, all_cells, run_params, iteration=0):
     return_data = {}
     filestub = parent_sim.params['OutputFileStub']
 

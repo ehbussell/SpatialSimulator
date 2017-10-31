@@ -2,11 +2,10 @@
 
 default_config gives the sections and keys for the KEYFILE, with text descriptions."""
 
-import configparser
 import os
 import errno
 from collections import OrderedDict
-import numpy as np
+import configparser
 
 default_config = OrderedDict([
     ('Epidemiology', OrderedDict([
@@ -24,6 +23,8 @@ default_config = OrderedDict([
                          "EXPONENTIAL", float)),
     ])),
     ('Simulation', OrderedDict([
+        ('SimulationType', (True, "INDIVIDUAL", "Type of simulation to run.  Options are: "
+                            "INDIVIDUAL, RASTER.", str)),
         ('FinalTime', (True, 10.0, "Time to stop the simulation.", float)),
         ('HostPosFile', (True, "hosts.txt", "Name of file containing host locations.  Can also "
                          "specify comma separated list of multiple files.", str)),
@@ -73,36 +74,40 @@ default_config = OrderedDict([
 ])
 
 
-def write_keyfile(filename="KEYFILE.txt"):
-    with open(filename, "w") as f:
-        f.write("# KEYFILE giving all parameter options that can be specified"
-                " in the configuration file.\n# KEY* indicates that key is "
-                "optional.\n")
+def write_keyfile(filename="KEYFILE.ini"):
+    """Generate keyfile detailing all parameter options."""
+
+    with open(filename, "w") as outfile:
+        outfile.write("# KEYFILE giving all parameter options that can be specified"
+                      " in the configuration file.\n")
         for section in default_config:
-            f.write("\n[" + section + "]\n")
+            outfile.write("\n[" + section + "]\n")
             for key in default_config[section]:
                 val = default_config[section][key]
+                outfile.write(key + " = " + str(val[1]))
                 if val[0] is False:
-                    f.write(key + "* = " + str(val[1]))
-                else:
-                    f.write(key + " = " + str(val[1]))
+                    outfile.write("\n  # Optional")
 
                 if val[2] is not None:
-                    f.write("\n  # " + val[2] + "\n")
+                    outfile.write("\n  # " + val[2] + "\n")
 
 
 def write_default_config(filename="config.ini"):
-    with open(filename, "w") as f:
+    """Write config file using all default values"""
+
+    with open(filename, "w") as outfile:
         for section in default_config:
-            f.write("[" + section + "]\n")
+            outfile.write("[" + section + "]\n")
             for key in default_config[section]:
                 val = default_config[section][key]
                 if val[0] is True:
-                    f.write(key + " = " + str(val[1]) + "\n")
-            f.write("\n")
+                    outfile.write(key + " = " + str(val[1]) + "\n")
+            outfile.write("\n")
 
 
 def read_parser(parser):
+    """Read configuration from config file parser."""
+
     return_dict = {}
 
     for section in default_config:
@@ -128,6 +133,8 @@ def read_parser(parser):
 
 
 def read_config_file(filename="config.ini"):
+    """Read configuration file."""
+    
     parser = configparser.ConfigParser()
     if os.path.exists(filename):
         parser.read(filename)
@@ -141,6 +148,8 @@ def read_config_file(filename="config.ini"):
 
 
 def read_config_string(config_string):
+    """ Read configuration from string (for reading from log file)."""
+
     parser = configparser.ConfigParser()
     parser.read_string(config_string)
 
@@ -150,6 +159,8 @@ def read_config_string(config_string):
 
 
 def get_parser_from_params(params):
+    """Create parser for given parameters, for writing to log file."""
+
     parser = configparser.ConfigParser()
     parser.optionxform = str
 
@@ -162,6 +173,8 @@ def get_parser_from_params(params):
 
 
 def check_params_valid(params):
+    """Check parameter values extracted are valid."""
+
     # TODO Should somehow check all necessary info is present i.e. AdvRates are correctly specified
     #   even though these keys are optional
     for section in default_config:

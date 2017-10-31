@@ -1,59 +1,147 @@
 """Methods for handling host detail initialisation, including all reading of host files."""
 
+import simulator_utils
+
 
 class Host(object):
     """All stored data for an individual host.
 
     Attributes:
-        x:          X position of host
-        y:          Y position of host
-        state:      Current state of host (S, I, R etc)
-        reg:        Region containing host
-        hostID:     ID code unique to this host
-        jump_times: Dictionary of entry times into each state compartment that has been visited.
+        x:              X position of host
+        y:              Y position of host
+        state:          Current state of host (S, I, R etc)
+        reg:            Region containing host
+        host_id:         ID code unique to this host
+        trans_times:    List of state transitions.  Each entry is tuple (time, old state, new state)
     """
 
-    def __init__(self, x, y, state=None, reg=0, hostID=None):
-        self.x = x
-        self.y = y
+    def __init__(self, x, y, state=None, reg=0, host_id=None, cell_id=None):
+        self.xpos = x
+        self.ypos = y
         self.reg = reg
-        self.hostID = hostID
-        self.jump_times = {}
+        self.host_id = host_id
+        self.cell_id = cell_id
+        self.trans_times = []
 
         if state is not None:
             self.state = state
-            self.jump_times[str(state)] = 0.0
+            self.trans_times.append((0.0, None, state))
 
     def __repr__(self):
-        repr_str = "Host(" + str(self.x) + ", " + str(self.y) + ", '"
-        repr_str += str(self.state) + "', " + str(self.reg) + ")"
+        repr_str = "Host(" + str(self.xpos) + ", " + str(self.ypos) + ", '"
+        repr_str += str(self.state) + "', " + str(self.reg) + str(self.host_id) + ")"
 
         return repr_str
 
+    def update_state(self, new_state, time):
+        """Update the current state of the host, storing transition time."""
 
-def read_host_files(host_pos_files, init_cond_files, region_files):
+        self.trans_times.append((time, self.state, new_state))
+        self.state = new_state
 
-    assert len(host_pos_files) == len(init_cond_files), "Number of input files do not match!"
 
-    if region_files is not None:
-        region_files = region_files.split(",")
-        assert len(host_pos_files) == len(region_files), "Number of input files do not match!"
-    else:
-        region_files = [None for _ in host_pos_files]
+class Cell(object):
+    """Raster cell object holding multiple hosts."""
 
-    all_hosts = []
+    def __init__(self, cell_position, hosts=None, cell_id=None):
+        self.cell_id = cell_id
+        self.cell_position = cell_position
+        self.states = {}
+        
+        if hosts is not None:
+            self.hosts = hosts
+            for host in self.hosts:
+                if host.state is not None:
+                    self.states[host.state] = self.states.get(host.state, 0) + 1
+        else:
+            self.hosts = []
 
-    for i, host_file in enumerate(host_pos_files):
-        hosts = read_host_file(host_file, default_region=i, hostID_start=len(all_hosts))
-        read_init_cond(hosts, init_cond_files[i])
-        if region_files[i] is not None:
-            read_regions(hosts, region_files[i])
-        all_hosts.extend(hosts)
+    def __repr__(self):
+        repr_str = "Cell(" + str(self.cell_position) + ", cell_id=" + str(self.cell_id) + ")"
 
-    return all_hosts
+        return repr_str
+
+    def update(self, old_state, new_state):
+        """Update state dictionary"""
+
+        self.states[old_state] = self.states.get(old_state, 0) - 1
+        self.states[new_state] = self.states.get(new_state, 0) + 1
+
+def read_host_files(host_pos_files, init_cond_files, region_files, states, sim_type="INDIVIDUAL"):
+    """Read all files associated with host initial state: position, initial state, region files."""
+
+    if sim_type == "INDIVIDUAL":
+
+        assert len(host_pos_files) == len(init_cond_files), "Number of input files do not match!"
+
+        if region_files is not None:
+            region_files = region_files.split(",")
+            assert len(host_pos_files) == len(region_files), "Number of input files do not match!"
+        else:
+            region_files = [None for _ in host_pos_files]
+
+        all_hosts = []
+
+        for i, host_file in enumerate(host_pos_files):
+            hosts = read_host_file(host_file, default_region=i, hostID_start=len(all_hosts))
+            read_init_cond(hosts, init_cond_files[i])
+            if region_files[i] is not None:
+                read_regions(hosts, region_files[i])
+            all_hosts.extend(hosts)
+
+        return (all_hosts, None)
+
+    if sim_type == "RASTER":
+
+        # TODO implement raster region files
+
+        assert len(host_pos_files) == 1, "Multiple host raster files provided!"
+
+        assert len(init_cond_files) == 1, "Only provide file stub for initial condition rasters!"
+
+        host_raster = simulator_utils.read_raster(host_pos_files[0])
+        state_rasters = []
+        for state in states:
+            state_rasters.append(simulator_utils.read_raster(
+                init_cond_files[0] + "_" + state + ".txt"))
+
+        all_cells = []
+        all_hosts = []
+        cell_id = 0
+        host_id = 0
+        cellsize = host_raster.header_vals['cellsize']
+
+        for row in range(host_raster.header_vals['nrows']):
+            for col in range(host_raster.header_vals['ncols']):
+                nhosts = host_raster.array[row, col]
+                if nhosts <= 0:
+                    continue
+                hosts = []
+                x = host_raster.header_vals['xllcorner'] + (col * cellsize) + (cellsize / 2)
+                y = host_raster.header_vals['yllcorner'] + (
+                    host_raster.header_vals['nrows'] * cellsize) - row * cellsize - (cellsize / 2)
+
+                for i, state in enumerate(states):
+                    nhosts_state = int(state_rasters[i].array[row, col])
+                    for j in range(nhosts_state):
+                        host = Host(x, y, state, host_id=host_id, cell_id=cell_id)
+                        host_id += 1
+                        hosts.append(host)
+                        all_hosts.append(host)
+
+                if len(hosts) != nhosts:
+                    print(nhosts, len(hosts))
+                    raise ValueError("Incorrect number of hosts!")
+
+                all_cells.append(Cell((row, col), hosts, cell_id))
+                cell_id += 1
+
+        return (all_hosts, all_cells)
 
 
 def read_host_file(filename, default_region=0, hostID_start=0):
+    """Read host file detailing host positions."""
+
     with open(filename, "r") as f:
         nhosts = int(f.readline())
 
@@ -61,22 +149,26 @@ def read_host_file(filename, default_region=0, hostID_start=0):
 
         for i in range(hostID_start, hostID_start + nhosts):
             x, y = f.readline().split()
-            all_hosts.append(Host(float(x), float(y), hostID=i, reg=default_region))
+            all_hosts.append(Host(float(x), float(y), host_id=i, reg=default_region))
 
     return all_hosts
 
 
 def read_init_cond(all_hosts, filename):
+    """Read host initial state file."""
+
     with open(filename, "r") as f:
         nhosts = int(f.readline())
 
         for i in range(nhosts):
             state = f.readline().strip()
             all_hosts[i].state = state
-            all_hosts[i].jump_times[str(state)] = 0.0
+            all_hosts[i].update_state(state, 0.0)
 
 
 def read_regions(all_hosts, filename):
+    """Read region file giving regions to which hosts belong."""
+
     with open(filename, "r") as f:
         nhosts = int(f.readline())
 

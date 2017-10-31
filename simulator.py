@@ -9,6 +9,7 @@ import copy
 import inspect
 import numpy as np
 import time as time_mod
+import simulator_utils
 
 
 __version__ = "0.0.10"
@@ -67,12 +68,6 @@ class Simulator:
 
         start_time = time_mod.time()
 
-        # Read in hosts
-        self.params['init_hosts'] = hosts.read_host_files(self.params['HostPosFile'].split(","),
-                                                          self.params['InitCondFile'].split(","),
-                                                          self.params['RegionFile'])
-        self.params['nhosts'] = len(self.params['init_hosts'])
-
         # Setup function to get next state from current state
         states = list(self.params['Model'])
 
@@ -87,21 +82,32 @@ class Simulator:
 
         self.params['next_state'] = next_state_func
 
+        # Read in hosts
+        self.params['init_hosts'], self.params['init_cells'] = hosts.read_host_files(
+                self.params['HostPosFile'].split(","), self.params['InitCondFile'].split(","),
+                self.params['RegionFile'], states, sim_type=self.params['SimulationType'])
+
+        self.params['nhosts'] = len(self.params['init_hosts'])
+        if self.params['init_cells'] is not None:
+            self.params['ncells'] = len(self.params['init_cells'])
+
         # Kernel setup
         if self.params['KernelType'] == "EXPONENTIAL":
             self.params['kernel'] = kernel_exp(self.params['KernelScale'])
         elif self.params['KernelType'] == "NONSPATIAL":
             self.params['kernel'] = kernel_nonspatial()
+        elif self.params['KernelType'] == "RASTER":
+            self.params['kernel'] = simulator_utils.read_raster("kernel_raster.txt")
         else:
             raise ValueError("Unrecognised KernelType!")
 
-        self.params['init_region_summary'] = [{key: 0 for key in states + ["Culled"]}
-                                              for _ in range(self.params['NRegions'])]
+        # self.params['init_region_summary'] = [{key: 0 for key in states + ["Culled"]}
+        #                                       for _ in range(self.params['NRegions'])]
 
         self.rate_handler = RateHandler(self)
 
         # Setup initial rates
-        if self.params['CacheKernel'] is True:
+        if self.params['CacheKernel'] is True and self.params['SimulationType'] == "INDIVIDUAL":
             distances, kernel_vals = calc_dist_kernel(self.params['init_hosts'],
                                                       self.params['kernel'])
             self.params['kernel_vals'] = kernel_vals
@@ -110,19 +116,43 @@ class Simulator:
         self.event_handler = EventHandler(self, self.rate_handler)
 
         self.params['region_map'] = {key: [] for key in range(self.params['NRegions'])}
-        self.params['init_inf_rates'] = np.zeros(self.params['nhosts'])
+        if self.params['init_cells'] is None:
+            self.params['init_inf_rates'] = np.zeros(self.params['nhosts'])
+        else:
+            self.params['init_inf_rates'] = np.zeros(self.params['ncells'])
         self.params['init_adv_rates'] = np.zeros(self.params['nhosts'])
-        for i in range(self.params['nhosts']):
-            current_state = self.params['init_hosts'][i].state
-            region = self.params['init_hosts'][i].reg
-            self.params['init_region_summary'][region][current_state] += 1
-            self.params['region_map'][region].append(i)
-            if current_state in "ECDI":
-                self.params['init_adv_rates'][i] = self.params[current_state + 'AdvRate']
-                if current_state in "CI":
-                    for j in range(self.params['nhosts']):
-                        if self.params['init_hosts'][j].state == "S":
-                            self.params['init_inf_rates'][j] += self.event_handler.kernel(j, i)
+
+        if self.params['SimulationType'] == "INDIVIDUAL":
+
+            for i in range(self.params['nhosts']):
+                current_state = self.params['init_hosts'][i].state
+                region = self.params['init_hosts'][i].reg
+                # self.params['init_region_summary'][region][current_state] += 1
+                self.params['region_map'][region].append(i)
+                if current_state in "ECDI":
+                    self.params['init_adv_rates'][i] = self.params[current_state + 'AdvRate']
+                    if current_state in "CI":
+                        for j in range(self.params['nhosts']):
+                            if self.params['init_hosts'][j].state == "S":
+                                self.params['init_inf_rates'][j] += self.event_handler.kernel(j, i)
+
+        elif self.params['SimulationType'] == "RASTER":
+
+            for cell in self.params['init_cells']:
+                for host in cell.hosts:
+                    current_state = host.state
+                    region = host.reg
+                    self.params['region_map'][region].append(host.host_id)
+                    if current_state in "ECDI":
+                        self.params['init_adv_rates'][host.host_id] = self.params[
+                            current_state + 'AdvRate']
+                if cell.states.get("C", 0) + cell.states.get("I", 0) > 0:
+                    for cell2 in self.params['init_cells']:
+                        self.params['init_inf_rates'][cell2.cell_id] += self.event_handler.kernel(
+                            cell2.cell_position, cell.cell_position) * cell2.states.get("S", 0)
+
+        else:
+            raise ValueError("Unrecognised SimulationType!")
 
         self.rate_factor = [self.params['InfRate'], 1]
 
@@ -130,6 +160,8 @@ class Simulator:
         self.intervention_handler = InterventionHandler(self)
 
         end_time = time_mod.time()
+
+        print(len(self.params['init_hosts']),len(self.params['init_cells']))
 
         if silent is False:
             print("Initial setup complete.  "
@@ -141,32 +173,51 @@ class Simulator:
         # Setup run parameters to keep track of iteration
         self.run_params = {}
         self.run_params['all_events'] = []
-        self.run_params['region_summary'] = copy.deepcopy(self.params['init_region_summary'])
-        self.run_params['summary_dump'] = []
+        # self.run_params['region_summary'] = copy.deepcopy(self.params['init_region_summary'])
+        # self.run_params['summary_dump'] = []
 
-        self.all_hosts = copy.deepcopy(self.params['init_hosts'])
+        # self.all_hosts = copy.deepcopy(self.params['init_hosts'])
+        # self.all_cells = copy.deepcopy(self.params['init_cells'])
+        self.all_hosts = self.params['init_hosts']
+        self.all_cells = self.params['init_cells']
+
+        print("Copied hosts and cells", flush=True)
 
         # Zero all rates
         self.rate_handler.zero_rates()
 
         # Initialise rates from setup
-        for i in range(self.params['nhosts']):
-            self.rate_handler.insert_rate(i, self.params['init_inf_rates'][i], "Infection")
-            self.rate_handler.insert_rate(i, self.params['init_adv_rates'][i], "Advance")
+        if self.params['SimulationType'] == "INDIVIDUAL":
+            for i in range(self.params['nhosts']):
+                self.rate_handler.insert_rate(i, self.params['init_inf_rates'][i], "Infection")
+                self.rate_handler.insert_rate(i, self.params['init_adv_rates'][i], "Advance")
+        
+        elif self.params['SimulationType'] == "RASTER":
+            for i in range(self.params['nhosts']):
+                self.rate_handler.insert_rate(i, self.params['init_adv_rates'][i], "Advance")
+
+            for j in range(self.params['ncells']):
+                self.rate_handler.insert_rate(j, self.params['init_inf_rates'][j], "Infection")
+
+        else:
+            raise ValueError("Unrecognised SimulationType!")
+
 
         self.time = 0
-        self.run_params['summary_dump'].append(
-            (self.time, copy.deepcopy(self.params['init_region_summary'])))
-        if self.params['SummaryOutputFreq'] != 0:
-            nextSummaryDumpTime = self.time + self.params['SummaryOutputFreq']
-        else:
-            nextSummaryDumpTime = np.inf
+        # self.run_params['summary_dump'].append(
+        #     (self.time, copy.deepcopy(self.params['init_region_summary'])))
+        # if self.params['SummaryOutputFreq'] != 0:
+        #     nextSummaryDumpTime = self.time + self.params['SummaryOutputFreq']
+        # else:
+        #     nextSummaryDumpTime = np.inf
 
         # Initialise interventions
         self.intervention_handler.initialise_rates(self.all_hosts)
 
         # Set time until first intervention
         nextInterventionTime = self.intervention_handler.next_intervention_time
+
+        nextPrintTime = self.params['FinalTime']/100
 
         # Run gillespie loop
         while True:
@@ -177,34 +228,37 @@ class Simulator:
             else:
                 nextTime = self.time + (-1.0/totRate)*np.log(np.random.random_sample())
 
-            if nextTime >= nextSummaryDumpTime or nextTime >= nextInterventionTime:
-                if nextSummaryDumpTime >= nextInterventionTime:
-                    if nextInterventionTime > self.params['FinalTime']:
-                        break
-                    self.time = nextInterventionTime
-                    # carry out intervention update
-                    self.intervention_handler.update(self.all_hosts, self.time)
-                    nextInterventionTime = self.intervention_handler.next_intervention_time
-                else:
-                    if nextSummaryDumpTime >= self.params['FinalTime']:
-                        break
-                    # Dump summary data
-                    self.time = nextSummaryDumpTime
-                    self.run_params['summary_dump'].append(
-                        (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))
-                    nextSummaryDumpTime += self.params['SummaryOutputFreq']
+            if nextTime >= nextInterventionTime:
+                if nextInterventionTime > self.params['FinalTime']:
+                    break
+                self.time = nextInterventionTime
+                # carry out intervention update
+                self.intervention_handler.update(self.all_hosts, self.time)
+                nextInterventionTime = self.intervention_handler.next_intervention_time
+                # else:
+                #     if nextSummaryDumpTime >= self.params['FinalTime']:
+                #         break
+                #     # Dump summary data
+                #     self.time = nextSummaryDumpTime
+                #     self.run_params['summary_dump'].append(
+                #         (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))
+                #     nextSummaryDumpTime += self.params['SummaryOutputFreq']
             else:
                 if nextTime > self.params['FinalTime']:
                     break
                 # Carry out event
                 self.time = nextTime
-                self.event_handler.do_event(event_type, hostID, self.all_hosts)
+                self.event_handler.do_event(event_type, hostID, self.all_hosts, self.all_cells)
                 if self.params['UpdateOnAllEvents'] is True:
                     self.intervention_handler.update_on_event(self.all_hosts, self.time)
                     nextInterventionTime = self.intervention_handler.next_intervention_time
 
-        self.run_params['summary_dump'].append(
-            (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))
+            if self.time > nextPrintTime:
+                print(self.time, flush=True)
+                nextPrintTime += self.params['FinalTime']/100
+
+        # self.run_params['summary_dump'].append(
+        #     (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))
 
         end_time = time_mod.time()
 
@@ -212,10 +266,10 @@ class Simulator:
             print("Run {0} of {1} complete.  ".format(iteration+1, self.params['NIterations']) +
                   "Time taken: {0:.3f} seconds.".format(end_time - start_time), end="\n")
 
-        return (self.all_hosts, self.run_params)
+        return (self.all_hosts, self.all_cells, self.run_params)
 
-    def output_run_data(self, all_hosts, run_params, iteration=0):
-        run_data = outputdata.output_all_run_data(self, all_hosts, run_params, iteration)
+    def output_run_data(self, all_hosts, all_cells, run_params, iteration=0):
+        run_data = outputdata.output_all_run_data(self, all_hosts, all_cells, run_params, iteration)
         return run_data
 
 
@@ -224,8 +278,9 @@ def run_epidemics(params):
     run_sim = Simulator(params)
     run_sim.setup()
     for iteration in range(params['NIterations']):
-        all_hosts, run_params = run_sim.run_epidemic(iteration)
-        all_data.append(run_sim.output_run_data(all_hosts, run_params, iteration=iteration))
+        all_hosts, all_cells, run_params = run_sim.run_epidemic(iteration)
+        all_data.append(
+            run_sim.output_run_data(all_hosts, all_cells, run_params, iteration=iteration))
 
     return all_data
 
