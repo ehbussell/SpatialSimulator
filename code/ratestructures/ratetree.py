@@ -4,6 +4,7 @@ import numpy as np
 class RateTree:
 
     def __init__(self, size):
+        self.nevents = size
         self.n_tree_levels = 1
         self.padded_length = 1
         while self.padded_length < size:

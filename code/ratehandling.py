@@ -11,15 +11,22 @@ class RateHandler:
         self.parent_sim = parent_sim
         self.params = self.parent_sim.params
 
+        if self.params['SimulationType'] == "INDIVIDUAL":
+            infection_size = self.params['nhosts']
+        elif self.params['SimulationType'] == "RASTER":
+            infection_size = self.params['ncells']
+            if self.params['VirtualSporulationStart'] is not None:
+                sporulation_size = self.params['ncells']
+
         if self.params['RateStructure-Infection'] == "ratesum":
-            self.inf_rates = RateSum(self.params['nhosts'])
+            self.inf_rates = RateSum(infection_size)
         elif self.params['RateStructure-Infection'] == "rateinterval":
-            self.inf_rates = RateInterval(self.params['nhosts'])
+            self.inf_rates = RateInterval(infection_size)
         elif self.params['RateStructure-Infection'] == "ratetree":
-            self.inf_rates = RateTree(self.params['nhosts'])
+            self.inf_rates = RateTree(infection_size)
         elif self.params['RateStructure-Infection'] == "rateCR":
-            self.inf_rates = RateCR(self.params['nhosts'], 0.125,
-                                    self.params['nhosts']*self.params['nhosts'])
+            self.inf_rates = RateCR(infection_size, 0.125,
+                                    infection_size*infection_size)
         else:
             raise ValueError("Invalid rate structure - infection events!")
 
@@ -35,8 +42,17 @@ class RateHandler:
         else:
             raise ValueError("Invalid rate structure - advance events!")
 
-        self.event_types = ["Infection", "Advance"]
-        self.all_rates = {"Infection": self.inf_rates, "Advance": self.adv_rates}
+        if self.params['VirtualSporulationStart'] is None:
+            self.event_types = ["Infection", "Advance"]
+            self.all_rates = {"Infection": self.inf_rates, "Advance": self.adv_rates}
+        else:
+            self.spore_events = RateInterval(sporulation_size)
+            self.event_types = ["Infection", "Advance", "Sporulation"]
+            self.all_rates = {
+                "Infection": self.inf_rates,
+                "Advance": self.adv_rates,
+                "Sporulation": self.spore_events
+            }
 
         self.n_types = range(len(self.event_types))
 

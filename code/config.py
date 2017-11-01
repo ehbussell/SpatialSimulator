@@ -25,6 +25,8 @@ default_config = OrderedDict([
     ('Simulation', OrderedDict([
         ('SimulationType', (True, "INDIVIDUAL", "Type of simulation to run.  Options are: "
                             "INDIVIDUAL, RASTER.", str)),
+        ('VirtualSporulationStart', (False, None, "Distance in cells to start using VS rather than"
+                            "coupling.  Default: No VS", int)),
         ('FinalTime', (True, 10.0, "Time to stop the simulation.", float)),
         ('HostPosFile', (True, "hosts.txt", "Name of file containing host locations.  Can also "
                          "specify comma separated list of multiple files.", str)),

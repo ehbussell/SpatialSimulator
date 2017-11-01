@@ -4,6 +4,7 @@ from IndividualSimulator.code import outputdata
 from IndividualSimulator.code.eventhandling import EventHandler
 from IndividualSimulator.code.interventionhandling import InterventionHandler
 from IndividualSimulator.code.ratehandling import RateHandler
+from IndividualSimulator.code.ratestructures.ratetree import RateTree
 import argparse
 import copy
 import inspect
@@ -97,9 +98,41 @@ class Simulator:
         elif self.params['KernelType'] == "NONSPATIAL":
             self.params['kernel'] = kernel_nonspatial()
         elif self.params['KernelType'] == "RASTER":
-            self.params['kernel'] = simulator_utils.read_raster("kernel_raster.txt")
+            self.params['kernel'] = simulator_utils.read_raster("kernel_raster.txt").array
         else:
             raise ValueError("Unrecognised KernelType!")
+
+        # Setup Virtual Sporulation
+        if self.params['SimulationType'] == "RASTER":
+            if self.params['VirtualSporulationStart'] is None:
+
+                array_size = self.params['kernel'].shape
+                self.params['coupled_positions'] = [
+                    (x, y) for y in range(-array_size[1], array_size[1]+1)
+                    for x in range(-array_size[0], array_size[0]+1)]
+                
+                self.params['coupled_kernel'] = self.params['kernel']
+
+            else:
+                start = self.params['VirtualSporulationStart']
+                self.params['coupled_positions'] = [
+                    (x, y) for y in range(1-start, start)
+                    for x in range(1-start, start)]
+
+                self.params['coupled_kernel'] = self.params['kernel'][0:start, 0:start]
+
+                spore_prob = np.sum(self.params['kernel'][start:, start:])
+
+                vs_kernel = np.copy(self.params['kernel']) / spore_prob
+                vs_kernel[0:start, 0:start] = 0
+                vs_kernel = vs_kernel.flatten()
+                self.params['vs_kernel'] = RateTree(len(vs_kernel))
+                for i, kernel_val in enumerate(vs_kernel):
+                    self.params['vs_kernel'].insert_rate(i, kernel_val)
+
+
+                self.params['spore_rate'] = self.params['InfRate'] * spore_prob
+
 
         # self.params['init_region_summary'] = [{key: 0 for key in states + ["Culled"]}
         #                                       for _ in range(self.params['NRegions'])]
@@ -120,6 +153,8 @@ class Simulator:
             self.params['init_inf_rates'] = np.zeros(self.params['nhosts'])
         else:
             self.params['init_inf_rates'] = np.zeros(self.params['ncells'])
+            if self.params['VirtualSporulationStart'] is not None:
+                self.params['init_spore_rates'] = np.zeros(self.params['ncells'])
         self.params['init_adv_rates'] = np.zeros(self.params['nhosts'])
 
         if self.params['SimulationType'] == "INDIVIDUAL":
@@ -138,7 +173,13 @@ class Simulator:
 
         elif self.params['SimulationType'] == "RASTER":
 
+            self.params['cell_map'] = {}
+
             for cell in self.params['init_cells']:
+                self.params['cell_map'][cell.cell_position] = cell.cell_id
+
+            for cell in self.params['init_cells']:
+                self.params['cell_map'][cell.cell_position] = cell.cell_id
                 for host in cell.hosts:
                     current_state = host.state
                     region = host.reg
@@ -146,15 +187,29 @@ class Simulator:
                     if current_state in "ECDI":
                         self.params['init_adv_rates'][host.host_id] = self.params[
                             current_state + 'AdvRate']
-                if cell.states.get("C", 0) + cell.states.get("I", 0) > 0:
-                    for cell2 in self.params['init_cells']:
-                        self.params['init_inf_rates'][cell2.cell_id] += self.event_handler.kernel(
-                            cell2.cell_position, cell.cell_position) * cell2.states.get("S", 0)
+                if (cell.states.get("C", 0) + cell.states.get("I", 0)) > 0:
+                    for cell2_rel_pos in self.params['coupled_positions']:
+                        cell2_pos = tuple(item1 + item2 for item1, item2
+                                          in zip(cell.cell_position, cell2_rel_pos))
+                        cell2_id = self.params['cell_map'].get(cell2_pos, None)
+                        if cell2_id is None:
+                            continue
+                        cell2 = self.params['init_cells'][cell2_id]
+                        self.params['init_inf_rates'][cell2_id] += cell2.states.get("S", 0) * (
+                            (cell.states.get("C", 0) + cell.states.get("I", 0)) *
+                            self.event_handler.kernel(cell2_rel_pos) / 100)
+
+                    if self.params['VirtualSporulationStart'] is not None:
+                        self.params['init_spore_rates'][cell.cell_id] = self.params['spore_rate'] *(
+                            cell.states.get("C", 0) + cell.states.get("I", 0))
 
         else:
             raise ValueError("Unrecognised SimulationType!")
 
         self.rate_factor = [self.params['InfRate'], 1]
+
+        if self.params['VirtualSporulationStart'] is not None:
+            self.rate_factor.append(self.params['spore_rate'])
 
         # Intervention setup
         self.intervention_handler = InterventionHandler(self)
@@ -191,17 +246,19 @@ class Simulator:
             for i in range(self.params['nhosts']):
                 self.rate_handler.insert_rate(i, self.params['init_inf_rates'][i], "Infection")
                 self.rate_handler.insert_rate(i, self.params['init_adv_rates'][i], "Advance")
-        
+
         elif self.params['SimulationType'] == "RASTER":
             for i in range(self.params['nhosts']):
                 self.rate_handler.insert_rate(i, self.params['init_adv_rates'][i], "Advance")
 
             for j in range(self.params['ncells']):
                 self.rate_handler.insert_rate(j, self.params['init_inf_rates'][j], "Infection")
+                if self.params['VirtualSporulationStart'] is not None:
+                    self.rate_handler.insert_rate(
+                        j, self.params['init_spore_rates'][j], "Sporulation")
 
         else:
             raise ValueError("Unrecognised SimulationType!")
-
 
         self.time = 0
         # self.run_params['summary_dump'].append(
@@ -255,6 +312,7 @@ class Simulator:
 
             if self.time > nextPrintTime:
                 print(self.time, flush=True)
+                print(np.sum([1 for cell in self.all_cells if cell.states.get("I", 0) > 0]))
                 nextPrintTime += self.params['FinalTime']/100
 
         # self.run_params['summary_dump'].append(
