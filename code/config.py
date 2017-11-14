@@ -37,6 +37,8 @@ default_config = OrderedDict([
                         " host.  If not specified no region based data is produced.  If "
                         "HostPosFile is a list, this must be a corresponding comma separated "
                         "list", str)),
+        ('KernelFile', (False, None, "Name of file containing raster kernel if SimulationType "
+                        "is RASTER.", str)),
         ('NIterations', (False, 1, "Number of individual simulations to run",
                          int)),
         ('NRegions', (False, 1, "Number of distinct regions.", int)),
@@ -53,6 +55,8 @@ default_config = OrderedDict([
         ('OutputFileStub', (False, "output", "File path stub for output files", str)),
     ])),
     ('Optimisation', OrderedDict([
+        ('SaveSetup', (False, True, "Whether or not to save the initial rates and states to re-use."
+                         " This can be slower for large numbers of hosts.", bool)),
         ('CacheKernel', (False, False, "Whether or not to cache the full "
                          "kernel at the start of the simulation", bool)),
         ('RateStructure-Infection', (False, "ratesum",

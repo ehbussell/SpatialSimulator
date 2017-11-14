@@ -98,7 +98,7 @@ class Simulator:
         elif self.params['KernelType'] == "NONSPATIAL":
             self.params['kernel'] = kernel_nonspatial()
         elif self.params['KernelType'] == "RASTER":
-            self.params['kernel'] = simulator_utils.read_raster("kernel_raster.txt").array
+            self.params['kernel'] = simulator_utils.read_raster(self.params['KernelFile']).array
         else:
             raise ValueError("Unrecognised KernelType!")
 
@@ -121,18 +121,17 @@ class Simulator:
 
                 self.params['coupled_kernel'] = self.params['kernel'][0:start, 0:start]
 
-                spore_prob = np.sum(self.params['kernel'][start:, start:])
 
-                vs_kernel = np.copy(self.params['kernel']) / spore_prob
+                vs_kernel = np.copy(self.params['kernel'])
                 vs_kernel[0:start, 0:start] = 0
-                vs_kernel = vs_kernel.flatten()
+                spore_prob = np.sum(vs_kernel)
+                vs_kernel = vs_kernel.flatten() / spore_prob
                 self.params['vs_kernel'] = RateTree(len(vs_kernel))
                 for i, kernel_val in enumerate(vs_kernel):
                     self.params['vs_kernel'].insert_rate(i, kernel_val)
 
 
                 self.params['spore_rate'] = self.params['InfRate'] * spore_prob
-
 
         # self.params['init_region_summary'] = [{key: 0 for key in states + ["Culled"]}
         #                                       for _ in range(self.params['NRegions'])]
@@ -179,7 +178,6 @@ class Simulator:
                 self.params['cell_map'][cell.cell_position] = cell.cell_id
 
             for cell in self.params['init_cells']:
-                self.params['cell_map'][cell.cell_position] = cell.cell_id
                 for host in cell.hosts:
                     current_state = host.state
                     region = host.reg
@@ -187,7 +185,7 @@ class Simulator:
                     if current_state in "ECDI":
                         self.params['init_adv_rates'][host.host_id] = self.params[
                             current_state + 'AdvRate']
-                if (cell.states.get("C", 0) + cell.states.get("I", 0)) > 0:
+                if (cell.states["C"] + cell.states["I"]) > 0:
                     for cell2_rel_pos in self.params['coupled_positions']:
                         cell2_pos = tuple(item1 + item2 for item1, item2
                                           in zip(cell.cell_position, cell2_rel_pos))
@@ -195,13 +193,13 @@ class Simulator:
                         if cell2_id is None:
                             continue
                         cell2 = self.params['init_cells'][cell2_id]
-                        self.params['init_inf_rates'][cell2_id] += cell2.states.get("S", 0) * (
-                            (cell.states.get("C", 0) + cell.states.get("I", 0)) *
+                        self.params['init_inf_rates'][cell2_id] += cell2.states["S"] * (
+                            (cell.states["C"] + cell.states["I"]) *
                             self.event_handler.kernel(cell2_rel_pos) / 100)
 
                     if self.params['VirtualSporulationStart'] is not None:
-                        self.params['init_spore_rates'][cell.cell_id] = self.params['spore_rate'] *(
-                            cell.states.get("C", 0) + cell.states.get("I", 0))
+                        self.params['init_spore_rates'][cell.cell_id] = (cell.states["C"] +
+                                                                         cell.states["I"])
 
         else:
             raise ValueError("Unrecognised SimulationType!")
@@ -274,8 +272,6 @@ class Simulator:
         # Set time until first intervention
         nextInterventionTime = self.intervention_handler.next_intervention_time
 
-        nextPrintTime = self.params['FinalTime']/100
-
         # Run gillespie loop
         while True:
             # Find next event from event handler
@@ -310,11 +306,6 @@ class Simulator:
                     self.intervention_handler.update_on_event(self.all_hosts, self.time)
                     nextInterventionTime = self.intervention_handler.next_intervention_time
 
-            if self.time > nextPrintTime:
-                print(self.time, flush=True)
-                print(np.sum([1 for cell in self.all_cells if cell.states.get("I", 0) > 0]))
-                nextPrintTime += self.params['FinalTime']/100
-
         # self.run_params['summary_dump'].append(
         #     (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))
 
@@ -323,6 +314,8 @@ class Simulator:
         if silent is False:
             print("Run {0} of {1} complete.  ".format(iteration+1, self.params['NIterations']) +
                   "Time taken: {0:.3f} seconds.".format(end_time - start_time), end="\n")
+
+        print("Total number of cells infected: {0}".format(np.sum([1 for x in self.all_cells if x.states["I"] > 0])))
 
         return (self.all_hosts, self.all_cells, self.run_params)
 
@@ -333,9 +326,13 @@ class Simulator:
 
 def run_epidemics(params):
     all_data = []
-    run_sim = Simulator(params)
-    run_sim.setup()
+    if params['SaveSetup']:
+        run_sim = Simulator(params)
+        run_sim.setup()
     for iteration in range(params['NIterations']):
+        if not params['SaveSetup']:
+            run_sim = Simulator(params)
+            run_sim.setup()
         all_hosts, all_cells, run_params = run_sim.run_epidemic(iteration)
         all_data.append(
             run_sim.output_run_data(all_hosts, all_cells, run_params, iteration=iteration))

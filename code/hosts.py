@@ -7,11 +7,12 @@ class Host(object):
     """All stored data for an individual host.
 
     Attributes:
-        x:              X position of host
-        y:              Y position of host
+        xpos:           X position of host
+        ypos:           Y position of host
         state:          Current state of host (S, I, R etc)
+        init_state:     Start state of host (at time t=0)
         reg:            Region containing host
-        host_id:         ID code unique to this host
+        host_id:        ID code unique to this host
         trans_times:    List of state transitions.  Each entry is tuple (time, old state, new state)
     """
 
@@ -25,6 +26,7 @@ class Host(object):
 
         if state is not None:
             self.state = state
+            self.init_state = state
             self.trans_times.append((0.0, None, state))
 
     def __repr__(self):
@@ -46,13 +48,14 @@ class Cell(object):
     def __init__(self, cell_position, hosts=None, cell_id=None):
         self.cell_id = cell_id
         self.cell_position = cell_position
-        self.states = {}
+        all_states = ["S", "E", "C", "D", "I", "R"]
+        self.states = {state: 0 for state in all_states}
         
         if hosts is not None:
             self.hosts = hosts
             for host in self.hosts:
                 if host.state is not None:
-                    self.states[host.state] = self.states.get(host.state, 0) + 1
+                    self.states[host.state] = self.states[host.state] + 1
         else:
             self.hosts = []
 
@@ -64,8 +67,8 @@ class Cell(object):
     def update(self, old_state, new_state):
         """Update state dictionary"""
 
-        self.states[old_state] = self.states.get(old_state, 0) - 1
-        self.states[new_state] = self.states.get(new_state, 0) + 1
+        self.states[old_state] = self.states[old_state] - 1
+        self.states[new_state] = self.states[new_state] + 1
 
 def read_host_files(host_pos_files, init_cond_files, region_files, states, sim_type="INDIVIDUAL"):
     """Read all files associated with host initial state: position, initial state, region files."""

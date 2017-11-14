@@ -101,7 +101,7 @@ class EventHandler:
         if self.parent_sim.params['VirtualSporulationStart'] is not None:
             self.rate_handler.insert_rate(
                 cell.cell_id,
-                cell.states.get("C", 0) + cell.states.get("I", 0), "Sporulation")
+                cell.states["C"] + cell.states["I"], "Sporulation")
 
         if new_state in "ECDI":
             self.rate_handler.insert_rate(
@@ -117,12 +117,12 @@ class EventHandler:
                 if cell2_id is None:
                     continue
                 cell2 = all_cells[cell2_id]
-                if cell2.states.get("S", 0) > 0:
+                if cell2.states["S"] > 0:
                     old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
                     new_rate = old_rate - (self.kernel(cell2_rel_pos) *
-                                           cell2.states.get("S", 0) / 100)
+                                           cell2.states["S"] / 100)
                     self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
-            
+
         if new_state in "CI":
             # Distribute rate changes to coupled cells
             for cell2_rel_pos in self.parent_sim.params['coupled_positions']:
@@ -132,10 +132,10 @@ class EventHandler:
                 if cell2_id is None:
                     continue
                 cell2 = all_cells[cell2_id]
-                if cell2.states.get("S", 0) > 0:
+                if cell2.states["S"] > 0:
                     old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
                     new_rate = old_rate + (self.kernel(cell2_rel_pos) *
-                                           cell2.states.get("S", 0) / 100)
+                                           cell2.states["S"] / 100)
                     self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
 
         self.parent_sim.run_params['all_events'].append(
@@ -144,7 +144,7 @@ class EventHandler:
     def do_event_inf_raster(self, cellID, all_hosts, all_cells):
         cell = all_cells[cellID]
 
-        nsus = cell.states.get("S", 0)
+        nsus = cell.states["S"]
         if nsus <= 0:
             raise ValueError("No susceptibles to infect!")
 
@@ -161,7 +161,7 @@ class EventHandler:
         if self.parent_sim.params['VirtualSporulationStart'] is not None:
             self.rate_handler.insert_rate(
                 cell.cell_id,
-                cell.states.get("C", 0) + cell.states.get("I", 0), "Sporulation")
+                cell.states["C"] + cell.states["I"], "Sporulation")
 
         # TODO handle if sporulation starts within same cell
         old_inf_rate = self.rate_handler.get_rate(cellID, "Infection")
@@ -181,10 +181,10 @@ class EventHandler:
                 if cell2_id is None:
                     continue
                 cell2 = all_cells[cell2_id]
-                if cell2.states.get("S", 0) > 0:
+                if cell2.states["S"] > 0:
                     old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
                     new_rate = old_rate + (self.kernel(cell2_rel_pos) *
-                                           cell2.states.get("S", 0) / 100)
+                                           cell2.states["S"] / 100)
                     self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
 
         self.parent_sim.run_params['all_events'].append(
@@ -215,7 +215,7 @@ class EventHandler:
 
         if cell_id is not None:
             random_num = np.random.random_sample()
-            if random_num < (all_cells[cell_id].states.get("S", 0) / 100):
+            if random_num < (all_cells[cell_id].states["S"] / 100):
                 self.do_event("Infection", cell_id, all_hosts, all_cells)
 
     def do_event_cull(self, hostID, all_hosts, all_cells):

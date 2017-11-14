@@ -82,13 +82,18 @@ def plot_results(hosts_filename="output_hosts_0.csv", event_filename="output_eve
     hosts_df = pd.read_csv(hosts_filename)
     events_df = pd.read_csv(event_filename)
 
+    for i, x in enumerate(hosts_df.columns):
+        if "timeEnter" in x:
+            host_start_idx = i
+            break
+
     host_points = np.zeros(len(hosts_df), dtype=[('position', float, 2),
                                                  ('colour', float, 4)])
 
     for index, host in hosts_df.iterrows():
         host_points['position'][index] = (host['posX'], host['posY'])
-        for name, timeEnter in host[4:].iteritems():
-            if timeEnter == 0:
+        for name, timeEnter in host[host_start_idx:].iteritems():
+            if 0 in eval(timeEnter):
                 state = name[9:]
         host_points['colour'][index] = state_colours[state]
 

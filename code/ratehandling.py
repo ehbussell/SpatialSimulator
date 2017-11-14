@@ -46,7 +46,7 @@ class RateHandler:
             self.event_types = ["Infection", "Advance"]
             self.all_rates = {"Infection": self.inf_rates, "Advance": self.adv_rates}
         else:
-            self.spore_events = RateInterval(sporulation_size)
+            self.spore_events = RateTree(sporulation_size)
             self.event_types = ["Infection", "Advance", "Sporulation"]
             self.all_rates = {
                 "Infection": self.inf_rates,

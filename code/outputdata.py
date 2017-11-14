@@ -1,11 +1,9 @@
 """Methods for outputting run data from the simulation."""
 
-from . import config
-import inspect
 import io
 import os
 import pandas as pd
-
+from . import config
 
 def output_all_run_data(parent_sim, all_hosts, all_cells, run_params, iteration=0):
     return_data = {}
@@ -17,7 +15,7 @@ def output_all_run_data(parent_sim, all_hosts, all_cells, run_params, iteration=
             os.makedirs(output_path, exist_ok=True)
 
     if parent_sim.params['OutputHostData'] is True:
-        host_data = output_data_hosts(all_hosts, parent_sim.params, iteration=iteration,
+        host_data = output_data_hosts(all_hosts, all_cells, parent_sim.params, iteration=iteration,
                                       file_stub=filestub)
         return_data['host_data'] = host_data
 
@@ -27,6 +25,7 @@ def output_all_run_data(parent_sim, all_hosts, all_cells, run_params, iteration=
         return_data['event_data'] = event_data
 
     if parent_sim.params['SummaryOutputFreq'] != 0:
+        raise NotImplementedError
         summary_data = output_data_summary(parent_sim.params, run_params, iteration=iteration,
                                            file_stub=filestub)
         return_data['summary_data'] = summary_data
@@ -40,7 +39,7 @@ def output_all_run_data(parent_sim, all_hosts, all_cells, run_params, iteration=
     return return_data
 
 
-def output_data_hosts(all_hosts, params, file_stub="output", iteration=0):
+def output_data_hosts(all_hosts, all_cells, params, file_stub="output", iteration=0):
     """Output state transition times for each host."""
 
     states = list(params['Model']) + ["Culled"]
@@ -48,23 +47,37 @@ def output_data_hosts(all_hosts, params, file_stub="output", iteration=0):
 
     filename = file_stub + "_hosts_" + str(iteration) + ".csv"
 
-    col_names = ["hostID", "posX", "posY", "region"] + ["timeEnter"+state for state in states]
+    if params['SimulationType'] == "INDIVIDUAL":
+        col_names = ["hostID", "posX", "posY", "region"] + ["timeEnter"+state for state in states]
+    else:
+        col_names = ["hostID", "posX", "posY", "cell", "cell_pos", "region", "initial_state"] + [
+            "timeEnter" + state for state in states]
+
     data_dict = {key: [] for key in col_names}
 
     for i in range(nhosts):
-        host_id = all_hosts[i].hostID
-        x = all_hosts[i].x
-        y = all_hosts[i].y
+        host_id = all_hosts[i].host_id
+        x = all_hosts[i].xpos
+        y = all_hosts[i].ypos
         region = all_hosts[i].reg
+        start_state = all_hosts[i].init_state
 
         data_dict['hostID'].append(host_id)
         data_dict['posX'].append(x)
         data_dict['posY'].append(y)
         data_dict['region'].append(region)
+        data_dict['initial_state'].append(start_state)
+
+        if params['SimulationType'] == "RASTER":
+            data_dict['cell'].append(all_hosts[i].cell_id)
+            data_dict['cell_pos'].append(all_cells[all_hosts[i].cell_id].cell_position)
 
         for state in states:
-            jump_time = all_hosts[i].jump_times.get(state, -1.0)
-            data_dict["timeEnter"+state].append(jump_time)
+            jump_times = []
+            for jump in all_hosts[i].trans_times:
+                if jump[2] == state:
+                    jump_times.append(jump[0])
+            data_dict["timeEnter"+state].append(jump_times)
 
     data_frame = pd.DataFrame(data_dict, columns=col_names)
 
@@ -96,7 +109,9 @@ def output_data_events(params, run_params, file_stub="output", iteration=0):
 
 
 def output_data_summary(params, run_params, file_stub="output", iteration=0):
-    """Ouput region based DPC summary data."""
+    """Output region based DPC summary data."""
+
+    # TODO re-implement now summary dump removed - construct from host data?
 
     data_dict = {}
     for region in range(params['NRegions']):
@@ -136,5 +151,5 @@ def output_log_file(params):
 
     filename = params['OutputFileStub'] + ".log"
 
-    with open(filename, "w") as f:
-        f.write(log_text)
+    with open(filename, "w") as outfile:
+        outfile.write(log_text)
