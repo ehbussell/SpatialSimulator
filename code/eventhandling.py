@@ -195,8 +195,7 @@ class EventHandler:
         selection_val = np.random.random_sample()
         selected_idx = self.parent_sim.params['vs_kernel'].select_event(selection_val)
 
-        size = int(np.sqrt(self.parent_sim.params['vs_kernel'].nevents))
-        cell_rel_pos = np.unravel_index(selected_idx, (size, size))
+        cell_rel_pos = np.unravel_index(selected_idx, self.parent_sim.params['kernel'].shape)
 
         random_num = np.random.random_sample()
         if random_num < 0.25:
