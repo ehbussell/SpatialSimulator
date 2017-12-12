@@ -73,8 +73,8 @@ def extract_params(config_file=None, log_file=None):
     return params
 
 
-def create_raster_run(output_file_stub, timestep=0.01, target_raster=None,
-                      ignore_outside_raster=False, max_hosts=100):
+def create_raster_runs(output_file_stub, timestep=0.01, target_raster=None,
+                       ignore_outside_raster=False, max_hosts=100):
     params = extract_params(log_file=output_file_stub+".log")
     all_data = extract_output_data(output_file_stub)
 
@@ -85,69 +85,74 @@ def create_raster_run(output_file_stub, timestep=0.01, target_raster=None,
         host_raster = target_raster
         nrows, ncols = host_raster.array.shape
 
-    host_map = {}
-    state = np.zeros((nrows*ncols, 2))
+    all_raster_runs = []
 
-    s_dict = {"Cell"+str(i): [] for i in range(nrows*ncols)}
-    i_dict = {"Cell"+str(i): [] for i in range(nrows*ncols)}
-    f_dict = {"Cell"+str(i): [] for i in range(nrows*ncols)}
-    times = []
+    for run_number, run in enumerate(all_data):
+        host_map = {}
+        state = np.zeros((nrows*ncols, 2))
 
-    # Construct initial state
-    for i, x in enumerate(all_data[0]['host_data'].columns):
-        if "timeEnter" in x:
-            host_start_idx = i
-            break
+        s_dict = {"Cell"+str(i): [] for i in range(nrows*ncols)}
+        i_dict = {"Cell"+str(i): [] for i in range(nrows*ncols)}
+        f_dict = {"Cell"+str(i): [] for i in range(nrows*ncols)}
+        times = []
 
-    for index, host in all_data[0]['host_data'].iterrows():
-        # find cell index
-        cell = get_cell(host, host_raster.header_vals)
-        if cell == -1:
-            if ignore_outside_raster:
-                continue
+        # Construct initial state
+        for i, x in enumerate(run['host_data'].columns):
+            if "timeEnter" in x:
+                host_start_idx = i
+                break
+
+        for index, host in run['host_data'].iterrows():
+            # find cell index
+            cell = get_cell(host, host_raster.header_vals)
+            if cell == -1:
+                if ignore_outside_raster:
+                    continue
+                else:
+                    raise ValueError("Host not in raster!")
+            host_map[host['hostID']] = cell
+            init_state = host['initial_state']
+            if init_state == "S":
+                state[cell, 0] += 1
+            elif init_state == "I":
+                state[cell, 1] += 1
             else:
-                raise ValueError("Host not in raster!")
-        host_map[host['hostID']] = cell
-        init_state = host['initial_state']
-        if init_state == "S":
-            state[cell, 0] += 1
-        elif init_state == "I":
-            state[cell, 1] += 1
-        else:
-            raise ValueError("Not S or I!")
+                raise ValueError("Not S or I!")
 
-    save_state(times, s_dict, i_dict, f_dict, 0.0, state, nrows*ncols)
-    
-    print("Initial state complete")
+        save_state(times, s_dict, i_dict, f_dict, 0.0, state, nrows*ncols)
 
-    next_time = timestep
+        next_time = timestep
 
-    for index, event in all_data[0]['event_data'].iterrows():
-        if event['time'] > next_time:
-            save_state(times, s_dict, i_dict, f_dict, next_time, state, nrows*ncols)
-            next_time += timestep
-        if event['hostID'] in host_map:
-            cell = host_map[event['hostID']]
-            state[cell, 0] -= 1
-            state[cell, 1] += 1
-    
-    save_state(times, s_dict, i_dict, f_dict, next_time, state, nrows*ncols)
+        for index, event in run['event_data'].iterrows():
+            if event['time'] > next_time:
+                save_state(times, s_dict, i_dict, f_dict, next_time, state, nrows*ncols)
+                next_time += timestep
+            if event['hostID'] in host_map:
+                cell = host_map[event['hostID']]
+                state[cell, 0] -= 1
+                state[cell, 1] += 1
 
-    s_dict['time'] = times
-    i_dict['time'] = times
-    f_dict['time'] = times
+        save_state(times, s_dict, i_dict, f_dict, next_time, state, nrows*ncols)
 
-    results_s = pd.DataFrame(s_dict)
-    results_i = pd.DataFrame(i_dict)
-    results_f = pd.DataFrame(f_dict)
+        s_dict['time'] = times
+        i_dict['time'] = times
+        f_dict['time'] = times
 
-    model_params = {
-        'dimensions': (nrows, ncols),
-        'max_hosts': max_hosts
-    }
+        results_s = pd.DataFrame(s_dict)
+        results_i = pd.DataFrame(i_dict)
+        results_f = pd.DataFrame(f_dict)
 
-    return raster_model.RasterRun(model_params, (results_s, results_i, results_f))
+        model_params = {
+            'dimensions': (nrows, ncols),
+            'max_hosts': max_hosts
+        }
 
+        all_raster_runs.append(
+            raster_model.RasterRun(model_params, (results_s, results_i, results_f)))
+
+        print("Run {0} of {1} complete".format(run_number+1, len(all_data)))
+
+    return all_raster_runs
 
 def get_cell(host_row, raster_header):
     x = host_row['posX']
