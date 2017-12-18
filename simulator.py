@@ -10,7 +10,7 @@ import copy
 import inspect
 import numpy as np
 import time as time_mod
-import simulator_utils
+import raster_tools
 
 
 __version__ = "0.0.10"
@@ -98,7 +98,8 @@ class Simulator:
         elif self.params['KernelType'] == "NONSPATIAL":
             self.params['kernel'] = kernel_nonspatial()
         elif self.params['KernelType'] == "RASTER":
-            self.params['kernel'] = simulator_utils.read_raster(self.params['KernelFile']).array
+            self.params['kernel'] = raster_tools.RasterData.from_file(
+                self.params['KernelFile']).array
         else:
             raise ValueError("Unrecognised KernelType!")
 

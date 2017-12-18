@@ -1,6 +1,6 @@
 """Methods for handling host detail initialisation, including all reading of host files."""
 
-import simulator_utils
+import raster_tools
 
 
 class Host(object):
@@ -102,10 +102,10 @@ def read_host_files(host_pos_files, init_cond_files, region_files, states, sim_t
 
         assert len(init_cond_files) == 1, "Only provide file stub for initial condition rasters!"
 
-        host_raster = simulator_utils.read_raster(host_pos_files[0])
+        host_raster = raster_tools.RasterData.from_file(host_pos_files[0])
         state_rasters = []
         for state in states:
-            state_rasters.append(simulator_utils.read_raster(
+            state_rasters.append(raster_tools.RasterData.from_file(
                 init_cond_files[0] + "_" + state + ".txt"))
 
         all_cells = []
