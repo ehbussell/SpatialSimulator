@@ -128,7 +128,10 @@ def read_parser(parser):
                     return_dict[key] = val
                 else:
                     val = parser[section][key]
-                    return_dict[key] = def_val[3](val)
+                    if val == "None":
+                        return_dict[key] = None
+                    else:
+                        return_dict[key] = def_val[3](val)
             else:
                 if def_val[0] is True:
                     raise configparser.NoOptionError(key, section)

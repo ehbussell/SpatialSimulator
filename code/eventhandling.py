@@ -120,7 +120,7 @@ class EventHandler:
                 if cell2.states["S"] > 0:
                     old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
                     new_rate = old_rate - (self.kernel(cell2_rel_pos) *
-                                           cell2.states["S"] / 100)
+                                           cell2.states["S"])
                     self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
 
         if new_state in "CI":
@@ -135,7 +135,7 @@ class EventHandler:
                 if cell2.states["S"] > 0:
                     old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
                     new_rate = old_rate + (self.kernel(cell2_rel_pos) *
-                                           cell2.states["S"] / 100)
+                                           cell2.states["S"])
                     self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
 
         self.parent_sim.run_params['all_events'].append(
@@ -184,7 +184,7 @@ class EventHandler:
                 if cell2.states["S"] > 0:
                     old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
                     new_rate = old_rate + (self.kernel(cell2_rel_pos) *
-                                           cell2.states["S"] / 100)
+                                           cell2.states["S"])
                     self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
 
         self.parent_sim.run_params['all_events'].append(

@@ -196,7 +196,7 @@ class Simulator:
                         cell2 = self.params['init_cells'][cell2_id]
                         self.params['init_inf_rates'][cell2_id] += cell2.states["S"] * (
                             (cell.states["C"] + cell.states["I"]) *
-                            self.event_handler.kernel(cell2_rel_pos) / 100)
+                            self.event_handler.kernel(cell2_rel_pos))
 
                     if self.params['VirtualSporulationStart'] is not None:
                         self.params['init_spore_rates'][cell.cell_id] = (cell.states["C"] +
