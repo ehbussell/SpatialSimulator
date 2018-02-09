@@ -6,6 +6,8 @@ import raster_tools
 import pandas as pd
 import numpy as np
 
+import pdb
+
 
 def extract_output_data(output_file_stub):
     """From an output_file_stub, extract all data as pandas dataframes."""
@@ -74,7 +76,7 @@ def extract_params(config_file=None, log_file=None):
 
 
 def create_raster_runs(output_file_stub, timestep=0.01, target_raster=None,
-                       ignore_outside_raster=False, max_hosts=100):
+                       ignore_outside_raster=False, max_hosts=100, nsims=None):
     params = extract_params(log_file=output_file_stub+".log")
     all_data = extract_output_data(output_file_stub)
 
@@ -84,6 +86,9 @@ def create_raster_runs(output_file_stub, timestep=0.01, target_raster=None,
     else:
         host_raster = target_raster
         nrows, ncols = host_raster.array.shape
+
+    if nsims is not None:
+        all_data = all_data[:nsims]
 
     all_raster_runs = []
 
@@ -105,7 +110,8 @@ def create_raster_runs(output_file_stub, timestep=0.01, target_raster=None,
         for index, host in run['host_data'].iterrows():
             # find cell index
             cell = raster_tools.find_position_in_raster((host['posX'], host['posY']),
-                                                        host_raster.header_vals)
+                                                        raster_header=host_raster.header_vals,
+                                                        index=True)
             if cell == -1:
                 if ignore_outside_raster:
                     continue
@@ -127,7 +133,7 @@ def create_raster_runs(output_file_stub, timestep=0.01, target_raster=None,
         next_time = timestep
 
         for index, event in run['event_data'].iterrows():
-            if event['time'] > next_time:
+            while event['time'] > next_time:
                 save_state(times, s_dict, i_dict, f_dict, next_time, state, nrows*ncols)
                 next_time += timestep
             if event['hostID'] in host_map:
@@ -141,9 +147,9 @@ def create_raster_runs(output_file_stub, timestep=0.01, target_raster=None,
         i_dict['time'] = times
         f_dict['time'] = times
 
-        results_s = pd.DataFrame(s_dict).sort_index(axis=1, inplace=True)
-        results_i = pd.DataFrame(i_dict).sort_index(axis=1, inplace=True)
-        results_f = pd.DataFrame(f_dict).sort_index(axis=1, inplace=True)
+        results_s = pd.DataFrame(s_dict)
+        results_i = pd.DataFrame(i_dict)
+        results_f = pd.DataFrame(f_dict)
 
         model_params = {
             'dimensions': (nrows, ncols),
@@ -166,22 +172,33 @@ def save_state(times, s_dict, i_dict, f_dict, time, state, ncells):
     times.append(time)
 
 
-def create_cell_data(output_file_stub, target_raster=None, ignore_outside_raster=False):
-    """Generate dictionary for each run with cell states and events."""
+def create_cell_data(output_file_stub, target_header=None, ignore_outside_raster=False):
+    """Generate dictionary for each run with cell states and states.
 
-    # TODO handle target raster correctly
+    Format is list of dictionaries, one for each simulation run. Dictionary keys are cell numbers
+    (0->n-1) with values an array of times and states e.g. time, S, I, R.
+
+    Arguments:
+        output_file_stub:       Stub for simulator output files to extract data from.
+        target_header:          Raster header to cast output data to. If None raster from simulation
+                                is used.
+        ignore_outside_raster:  If True then hosts from the simulation that are outside the target
+                                raster are ignored entirely. Otherwise (default) an exception is
+                                raised when a host is found outside the target header.
+    """
+
+    # TODO test that target raster is handled correctly
 
     print("Reading in data...")
 
     params = extract_params(log_file=output_file_stub+".log")
     all_data = extract_output_data(output_file_stub)
 
-    if target_raster is None:
-        host_raster = raster_tools.RasterData.from_file(params['HostPosFile'].split(",")[0])
-        nrows, ncols = host_raster.array.shape
-    else:
-        host_raster = target_raster
-        nrows, ncols = host_raster.array.shape
+    if target_header is None:
+        target_header = raster_tools.RasterData.from_file(
+            params['HostPosFile'].split(",")[0]).header_vals
+
+    nrows, ncols = target_header['nrows'], target_header['ncols']
 
     all_cell_data = []
 
@@ -197,11 +214,19 @@ def create_cell_data(output_file_stub, target_raster=None, ignore_outside_raster
         }
 
         values = zip(run['host_data']['hostID'].values,
-                     run['host_data']['cell'].values,
+                     run['host_data']['posX'].values,
+                     run['host_data']['posY'].values,
                      run['host_data']['initial_state'].values)
 
-        for hostID, cell, initState in values:
+        for hostID, posX, posY, initState in values:
             # find cell index
+            cell = raster_tools.find_position_in_raster(
+                (posX, posY), raster_header=target_header, index=True)
+            if cell == -1:
+                if ignore_outside_raster:
+                    continue
+                else:
+                    raise ValueError("Host not in raster!")
             host_map[hostID] = cell
             cell_data[cell][0, state_map[initState]+1] += 1
 
@@ -211,15 +236,16 @@ def create_cell_data(output_file_stub, target_raster=None, ignore_outside_raster
                      run['event_data']['newState'].values)
 
         for time, hostID, old, new in values:
-            cell = host_map[hostID]
-            new_row = np.copy(cell_data[cell][-1])
-            new_row[0] = time
-            new_row[state_map[old]+1] -= 1
-            new_row[state_map[new]+1] += 1
-            cell_data[cell] = np.vstack([cell_data[cell], new_row])
+            if hostID in host_map:
+                cell = host_map[hostID]
+                new_row = np.copy(cell_data[cell][-1])
+                new_row[0] = time
+                new_row[state_map[old]+1] -= 1
+                new_row[state_map[new]+1] += 1
+                cell_data[cell] = np.vstack([cell_data[cell], new_row])
 
         all_cell_data.append(cell_data)
-        
+
         print("Run {0} of {1} complete".format(run_number+1, len(all_data)))
 
     print("Extraction complete.")
