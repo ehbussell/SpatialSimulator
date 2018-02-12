@@ -37,9 +37,10 @@ class EventHandler:
         #      all_hosts[i].y-all_hosts[hostID].y]))
 
     def kernel_raster(self, cell_rel_pos):
+        shape = self.parent_sim.params['coupled_kernel'].shape 
 
-        return self.parent_sim.params['coupled_kernel'][abs(cell_rel_pos[0]),
-                                                        abs(cell_rel_pos[1])]
+        return self.parent_sim.params['coupled_kernel'][cell_rel_pos[0] + int(shape[0]/2),
+                                                        cell_rel_pos[1] + int(shape[1]/2)]
 
     def do_event(self, event_type, eventID, all_hosts, all_cells):
         if event_type == "Infection":
@@ -47,7 +48,7 @@ class EventHandler:
         elif event_type == "Advance":
             self.do_event_advance(eventID, all_hosts, all_cells)
         elif event_type == "Sporulation":
-            self.do_event_sporulation(eventID, all_hosts, all_cells)
+            return self.do_event_sporulation(eventID, all_hosts, all_cells)
         elif event_type == "Cull":
             self.do_event_cull(eventID, all_hosts, all_cells)
         elif event_type.startswith("Intervention"):
@@ -146,7 +147,7 @@ class EventHandler:
 
         nsus = cell.states["S"]
         if nsus <= 0:
-            raise ValueError("No susceptibles to infect!")
+            raise ValueError("No susceptibles to infect!\n" + str(cell.states))
 
         for host in cell.hosts:
             if host.state == "S":
@@ -195,17 +196,11 @@ class EventHandler:
         selection_val = np.random.random_sample()
         selected_idx = self.parent_sim.params['vs_kernel'].select_event(selection_val)
 
-        cell_rel_pos = np.unravel_index(selected_idx, self.parent_sim.params['kernel'].shape)
+        kernel_shape = self.parent_sim.params['kernel'].shape
+        kernel_pos = np.unravel_index(selected_idx, kernel_shape)
+        cell_rel_pos = [kernel_pos[i] - int(kernel_shape[i]/2) for i in range(2)]
 
         random_num = np.random.random_sample()
-        if random_num < 0.25:
-            pass
-        elif random_num < 0.5:
-            cell_rel_pos = (cell_rel_pos[0], -cell_rel_pos[1])
-        elif random_num < 0.75:
-            cell_rel_pos = (-cell_rel_pos[0], -cell_rel_pos[1])
-        else:
-            cell_rel_pos = (-cell_rel_pos[0], cell_rel_pos[1])
 
         cell_pos = tuple(item1 + item2 for item1, item2
                          in zip(all_cells[cellID].cell_position, cell_rel_pos))
@@ -216,6 +211,8 @@ class EventHandler:
             random_num = np.random.random_sample()
             if random_num < (all_cells[cell_id].states["S"] / 100):
                 self.do_event("Infection", cell_id, all_hosts, all_cells)
+
+        return cell_id
 
     def do_event_cull(self, hostID, all_hosts, all_cells):
         old_state = all_hosts[hostID].state

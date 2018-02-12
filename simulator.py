@@ -1,3 +1,4 @@
+import pdb
 from IndividualSimulator.code import config
 from IndividualSimulator.code import hosts
 from IndividualSimulator.code import outputdata
@@ -5,6 +6,7 @@ from IndividualSimulator.code.eventhandling import EventHandler
 from IndividualSimulator.code.interventionhandling import InterventionHandler
 from IndividualSimulator.code.ratehandling import RateHandler
 from IndividualSimulator.code.ratestructures.ratetree import RateTree
+from IndividualSimulator.code.ratestructures.ratesum import RateSum
 import argparse
 import copy
 import inspect
@@ -120,19 +122,21 @@ class Simulator:
                     (x, y) for y in range(1-start, start)
                     for x in range(1-start, start)]
 
-                self.params['coupled_kernel'] = self.params['kernel'][0:start, 0:start]
+                centre = [int(x/2) for x in self.params['kernel'].shape]
 
+                self.params['coupled_kernel'] = self.params['kernel'][
+                    (centre[0]+1-start):(centre[0]+start), (centre[1]+1-start):(centre[1]+start)]
 
                 vs_kernel = np.copy(self.params['kernel'])
-                vs_kernel[0:start, 0:start] = 0
+                vs_kernel[(centre[0]+1-start):(centre[0]+start),
+                          (centre[1]+1-start):(centre[1]+start)] = 0
                 spore_prob = np.sum(vs_kernel)
                 vs_kernel = vs_kernel.flatten() / spore_prob
                 self.params['vs_kernel'] = RateTree(len(vs_kernel))
                 for i, kernel_val in enumerate(vs_kernel):
                     self.params['vs_kernel'].insert_rate(i, kernel_val)
 
-
-                self.params['spore_rate'] = self.params['InfRate'] * spore_prob
+                self.params['spore_rate'] = self.params['InfRate'] * spore_prob 
 
         # self.params['init_region_summary'] = [{key: 0 for key in states + ["Culled"]}
         #                                       for _ in range(self.params['NRegions'])]
@@ -221,9 +225,7 @@ class Simulator:
             print("Initial setup complete.  "
                   "Time taken: {0:.3f} seconds.".format(end_time - start_time))
 
-    def run_epidemic(self, iteration=0, silent=False):
-        start_time = time_mod.time()
-
+    def initialise(self):
         # Setup run parameters to keep track of iteration
         self.run_params = {}
         self.run_params['all_events'] = []
@@ -269,6 +271,10 @@ class Simulator:
 
         # Initialise interventions
         self.intervention_handler.initialise_rates(self.all_hosts)
+
+
+    def run_epidemic(self, iteration=0, silent=False):
+        start_time = time_mod.time()
 
         # Set time until first intervention
         nextInterventionTime = self.intervention_handler.next_intervention_time
@@ -334,6 +340,7 @@ def run_epidemics(params):
         if not params['SaveSetup']:
             run_sim = Simulator(params)
             run_sim.setup()
+            run_sim.initialise()
         all_hosts, all_cells, run_params = run_sim.run_epidemic(iteration)
         all_data.append(
             run_sim.output_run_data(all_hosts, all_cells, run_params, iteration=iteration))
