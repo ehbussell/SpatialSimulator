@@ -4,7 +4,7 @@ import unittest
 from collections import Counter
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy
+import scipy.stats
 from scipy.stats import poisson
 import raster_tools
 from IndividualSimulator import simulator
@@ -39,12 +39,6 @@ class VSRatesTests(unittest.TestCase):
 
         # Create kernel file
         kernel_raster = raster_tools.RasterData(kernel_size, array=np.full(kernel_size, 1.0))
-        # for i in range(kernel_size[0]):
-        #     for j in range(kernel_size[1]):
-        #         row = i - kernel_centre[0]
-        #         col = j - kernel_centre[1]
-        #         distance = np.sqrt(row*row + col*col)
-        #         kernel_raster.array[i, j] = np.exp(-distance/cls._scale_val)
         kernel_raster.array[kernel_centre[0], kernel_centre[1]] = 0
         kernel_raster.to_file(init_stub + "_kernel.txt")
 
@@ -108,7 +102,6 @@ class VSRatesTests(unittest.TestCase):
             rel_pos = (host_pos[0] - centre_pos[0], host_pos[1] - centre_pos[1])
             kernel_pos = [rel_pos[i] + int(kernel_shape[i]/2) for i in range(2)]
             expected = self._beta_val*self._kernel[kernel_pos[0], kernel_pos[1]]
-            stdev = np.sqrt(expected)
             all_n_events.append(val)
 
         mu = expected
@@ -124,8 +117,6 @@ class VSRatesTests(unittest.TestCase):
         ax.set_ylabel("Frequency")
         ax.set_title("Virtual Sporulation Test Results")
         fig.savefig(os.path.join("testing", "NEventsHist.png"))
-        plt.show()
-
 
         bins = list(x) + [x[-1]+0.5]
         f_obs = np.histogram(all_n_events, bins, normed=True)[0]

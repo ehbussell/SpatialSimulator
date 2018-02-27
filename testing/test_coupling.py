@@ -4,7 +4,7 @@ import unittest
 from collections import Counter
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy
+import scipy.stats
 from scipy.stats import poisson
 import raster_tools
 from IndividualSimulator import simulator
@@ -47,7 +47,7 @@ class CouplingRatesTests(unittest.TestCase):
         # Setup config file
         config_filename = os.path.join("testing", "coupling_rates_config.ini")
         config_str = "\n[Epidemiology]\n"
-        config_str += "Model = SI\nInfRate = " + str(cls._beta_val) 
+        config_str += "Model = SI\nInfRate = " + str(cls._beta_val)
         config_str += "\nIAdvRate = 0.0\nKernelType = RASTER\n"
         config_str += "\n[Simulation]\n"
         config_str += "SimulationType = RASTER\nFinalTime = 1\nNIterations = 1\n"
@@ -99,7 +99,6 @@ class CouplingRatesTests(unittest.TestCase):
             rel_pos = (host_pos[0] - centre_pos[0], host_pos[1] - centre_pos[1])
             kernel_pos = [rel_pos[i] + int(kernel_shape[i]/2) for i in range(2)]
             expected = self._beta_val*self._kernel[kernel_pos[0], kernel_pos[1]]
-            stdev = np.sqrt(expected)
             all_n_events.append(val)
 
         mu = expected
@@ -115,8 +114,6 @@ class CouplingRatesTests(unittest.TestCase):
         ax.set_ylabel("Frequency")
         ax.set_title("Coupling Test Results")
         fig.savefig(os.path.join("testing", "CouplingHist.png"))
-        plt.show()
-
 
         bins = list(x) + [x[-1]+0.5]
         f_obs = np.histogram(all_n_events, bins, normed=True)[0]
