@@ -1,3 +1,5 @@
+# TODO FIXME broken now that event returned by do_event only gives cell id if infected
+
 import os
 import glob
 import unittest
@@ -8,6 +10,8 @@ import scipy.stats
 from scipy.stats import poisson
 import raster_tools
 from IndividualSimulator import simulator
+
+import pdb
 
 class VSRatesTests(unittest.TestCase):
     """Test VS gives correct rates"""
@@ -48,7 +52,7 @@ class VSRatesTests(unittest.TestCase):
         # Setup config file
         config_filename = os.path.join("testing", "VS_rates_config.ini")
         config_str = "\n[Epidemiology]\n"
-        config_str += "Model = SEI\nInfRate = " + str(cls._beta_val) 
+        config_str += "Model = SEI\nInfRate = " + str(cls._beta_val)
         config_str += "\nEAdvRate = 0.0\nIAdvRate = 0.0\nKernelType = RASTER\n"
         config_str += "\n[Simulation]\n"
         config_str += "SimulationType = RASTER\nFinalTime = 1\nNIterations = 1\n"
@@ -77,7 +81,7 @@ class VSRatesTests(unittest.TestCase):
         n_spore_events = 0
 
         while True:
-            totRate, event_type, hostID = self._simulator.rate_handler.get_next_event()
+            totRate, event_type, cell_id = self._simulator.rate_handler.get_next_event()
             if event_type != "Sporulation":
                 raise ValueError("Not a sporulation event!")
             nextTime = self._simulator.time + (-1.0/totRate)*np.log(np.random.random_sample())
@@ -86,10 +90,10 @@ class VSRatesTests(unittest.TestCase):
             n_spore_events += 1
             # Carry out event
             self._simulator.time = nextTime
-            cell_id = self._simulator.event_handler.do_event(
-                event_type, hostID, self._simulator.all_hosts, self._simulator.all_cells)
-            if cell_id is not None:
-                count[cell_id] += 1
+            spore_cell = self._simulator.event_handler.do_event_sporulation(
+                cell_id, self._simulator.all_hosts, self._simulator.all_cells, debug=True)
+            if spore_cell is not None:
+                count[spore_cell] += 1
 
         centre_pos = [int(self._size[i]/2) for i in range(2)]
         kernel_shape = self._kernel.shape
@@ -104,7 +108,7 @@ class VSRatesTests(unittest.TestCase):
             expected = self._beta_val*self._kernel[kernel_pos[0], kernel_pos[1]]
             all_n_events.append(val)
 
-        mu = expected
+        mu = self._beta_val
         x = np.arange(poisson.ppf(0.001, mu), poisson.ppf(0.999, mu))
 
         plt.style.use("ggplot")
@@ -116,7 +120,7 @@ class VSRatesTests(unittest.TestCase):
         ax.set_xlabel("Number of Spores Landing")
         ax.set_ylabel("Frequency")
         ax.set_title("Virtual Sporulation Test Results")
-        fig.savefig(os.path.join("testing", "NEventsHist.png"))
+        fig.savefig(os.path.join("testing", "VSTestHist.png"))
 
         bins = list(x) + [x[-1]+0.5]
         f_obs = np.histogram(all_n_events, bins, normed=True)[0]

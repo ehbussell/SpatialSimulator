@@ -56,7 +56,8 @@ class RateHandler:
 
         self.n_types = range(len(self.event_types))
 
-    def add_rate_struct(self, event_type, size, structure="ratesum"):
+    def add_rate_struct(self, event_type, size, structure="ratesum", rate_factor=1):
+        # TODO implement changing structure
         if event_type in self.all_rates:
             raise ValueError("Event type already exists!")
 
@@ -65,7 +66,7 @@ class RateHandler:
         rate_structure.zero_rates()
         self.all_rates[event_type] = rate_structure
 
-        self.parent_sim.rate_factor.append(1)
+        self.parent_sim.rate_factor.append(rate_factor)
 
     def get_total_rate(self):
         total_rate = np.sum([self.parent_sim.rate_factor[i] *

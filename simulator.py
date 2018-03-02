@@ -111,9 +111,9 @@ class Simulator:
 
                 array_size = self.params['kernel'].shape
                 self.params['coupled_positions'] = [
-                    (x, y) for y in range(-array_size[1], array_size[1]+1)
-                    for x in range(-array_size[0], array_size[0]+1)]
-                
+                    (x, y) for y in range(-int(array_size[1]/2), int(array_size[1]/2)+1)
+                    for x in range(-int(array_size[0]/2), int(array_size[0]/2)+1)]
+
                 self.params['coupled_kernel'] = self.params['kernel']
 
             else:
@@ -136,7 +136,7 @@ class Simulator:
                 for i, kernel_val in enumerate(vs_kernel):
                     self.params['vs_kernel'].insert_rate(i, kernel_val)
 
-                self.params['spore_rate'] = self.params['InfRate'] * spore_prob 
+                self.params['spore_rate'] = self.params['InfRate'] * spore_prob
 
         # self.params['init_region_summary'] = [{key: 0 for key in states + ["Culled"]}
         #                                       for _ in range(self.params['NRegions'])]
@@ -270,14 +270,14 @@ class Simulator:
         #     nextSummaryDumpTime = np.inf
 
         # Initialise interventions
-        self.intervention_handler.initialise_rates(self.all_hosts)
+        self.intervention_handler.initialise_rates(self.all_hosts, self.all_cells)
 
 
     def run_epidemic(self, iteration=0, silent=False):
         start_time = time_mod.time()
 
         # Set time until first intervention
-        nextInterventionTime = self.intervention_handler.next_intervention_time
+        next_intervention_time = self.intervention_handler.next_intervention_time
 
         # Run gillespie loop
         while True:
@@ -288,13 +288,14 @@ class Simulator:
             else:
                 nextTime = self.time + (-1.0/totRate)*np.log(np.random.random_sample())
 
-            if nextTime >= nextInterventionTime:
-                if nextInterventionTime > self.params['FinalTime']:
+            if nextTime >= next_intervention_time and nextTime != np.inf:
+                if next_intervention_time > self.params['FinalTime']:
                     break
-                self.time = nextInterventionTime
+                self.time = next_intervention_time
                 # carry out intervention update
-                self.intervention_handler.update(self.all_hosts, self.time)
-                nextInterventionTime = self.intervention_handler.next_intervention_time
+                print("HERE", next_intervention_time)
+                self.intervention_handler.update(self.all_hosts, self.time, self.all_cells)
+                next_intervention_time = self.intervention_handler.next_intervention_time
                 # else:
                 #     if nextSummaryDumpTime >= self.params['FinalTime']:
                 #         break
@@ -308,10 +309,11 @@ class Simulator:
                     break
                 # Carry out event
                 self.time = nextTime
-                self.event_handler.do_event(event_type, hostID, self.all_hosts, self.all_cells)
+                event = self.event_handler.do_event(event_type, hostID, self.all_hosts,
+                                                    self.all_cells)
                 if self.params['UpdateOnAllEvents'] is True:
-                    self.intervention_handler.update_on_event(self.all_hosts, self.time)
-                    nextInterventionTime = self.intervention_handler.next_intervention_time
+                    self.intervention_handler.update_on_event(event, self.all_hosts, self.time,
+                                                              self.all_cells)
 
         # self.run_params['summary_dump'].append(
         #     (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))

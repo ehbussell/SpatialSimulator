@@ -1,7 +1,10 @@
+"""Module for handling events in Individual Epidemic Simulator."""
+
+import pdb
 import numpy as np
 
-
 class EventHandler:
+    """Class to carry out all events on hosts and cells."""
 
     def __init__(self, parent_sim, rate_handler):
         self.parent_sim = parent_sim
@@ -26,124 +29,105 @@ class EventHandler:
         else:
             raise ValueError("Unrecognised SimulationType!")
 
-    def kernel_cached(self, i, hostID):
-        return self.parent_sim.params['kernel_vals'][i, hostID]
+    def kernel_cached(self, host_id1, host_id2):
+        """Calculate kernel between two hosts - from cached value."""
 
-    def kernel_uncached(self, i, hostID):
-        # TODO fix uncached kernels
+        return self.parent_sim.params['kernel_vals'][host_id1, host_id2]
+
+    def kernel_uncached(self, host_id1, host_id2):
+        """Calculate kernel between two hosts - calculated on-they-fly."""
+
+        # TODO FIXME uncached kernels
         pass
         # return self.parent_sim.params['kernel'](np.linalg.norm(
         #     [all_hosts[i].x-all_hosts[hostID].x,
         #      all_hosts[i].y-all_hosts[hostID].y]))
 
     def kernel_raster(self, cell_rel_pos):
-        shape = self.parent_sim.params['coupled_kernel'].shape 
+        """Get kernel value in raster mode for given relative position."""
+
+        shape = self.parent_sim.params['coupled_kernel'].shape
 
         return self.parent_sim.params['coupled_kernel'][cell_rel_pos[0] + int(shape[0]/2),
                                                         cell_rel_pos[1] + int(shape[1]/2)]
 
-    def do_event(self, event_type, eventID, all_hosts, all_cells):
+    def do_event(self, event_type, event_id, all_hosts, all_cells):
+        """Carry out event on given host or cell."""
+
         if event_type == "Infection":
-            self.do_event_infection(eventID, all_hosts, all_cells)
+            return self.do_event_infection(event_id, all_hosts, all_cells)
         elif event_type == "Advance":
-            self.do_event_advance(eventID, all_hosts, all_cells)
+            return self.do_event_advance(event_id, all_hosts, all_cells)
         elif event_type == "Sporulation":
-            return self.do_event_sporulation(eventID, all_hosts, all_cells)
-        elif event_type == "Cull":
-            self.do_event_cull(eventID, all_hosts, all_cells)
+            return self.do_event_sporulation(event_id, all_hosts, all_cells)
+        elif event_type == "CULL":
+            return self.do_event_cull(event_id, all_hosts, all_cells)
         elif event_type.startswith("Intervention"):
-            self.parent_sim.intervention_handler.action(event_type, eventID, all_hosts, all_cells)
+            return self.parent_sim.intervention_handler.action(event_type, event_id, all_hosts,
+                                                               all_cells)
         else:
             raise ValueError("Unrecognised event type: {}!".format(event_type))
 
-    def do_event_standard(self, hostID, all_hosts, all_cells):
-        old_state = all_hosts[hostID].state
+    def do_event_standard(self, host_id, all_hosts, all_cells):
+        """Carry out standard infection/advance event in Individual model mode."""
+
+        old_state = all_hosts[host_id].state
         new_state = self.parent_sim.params['next_state'](old_state)
 
         if old_state == "S":
-            self.rate_handler.insert_rate(hostID, 0.0, "Infection")
+            self.rate_handler.insert_rate(host_id, 0.0, "Infection")
         if new_state in "ECDI":
             self.rate_handler.insert_rate(
-                hostID, self.parent_sim.params[new_state + 'AdvRate'], "Advance")
+                host_id, self.parent_sim.params[new_state + 'AdvRate'], "Advance")
         if new_state == "R":
-            self.rate_handler.insert_rate(hostID, 0.0, "Advance")
+            self.rate_handler.insert_rate(host_id, 0.0, "Advance")
             # Distribute rate changes
-            for i in range(len(all_hosts)):
-                if all_hosts[i].state == "S":
-                    old_rate = self.rate_handler.get_rate(i, "Infection")
-                    new_rate = old_rate - self.kernel(i, hostID)
-                    self.rate_handler.insert_rate(i, new_rate, "Infection")
-
+            self.distribute_removal_individual(host_id, all_hosts)
         if new_state in "CI":
             # Distribute rate changes
-            for i in range(len(all_hosts)):
-                if all_hosts[i].state == "S":
-                    old_rate = self.rate_handler.get_rate(i, "Infection")
-                    new_rate = old_rate + self.kernel(i, hostID)
-                    self.rate_handler.insert_rate(i, new_rate, "Infection")
+            self.distribute_infection_individual(host_id, all_hosts)
 
-        all_hosts[hostID].update_state(new_state, self.parent_sim.time)
+        all_hosts[host_id].update_state(new_state, self.parent_sim.time)
 
         self.parent_sim.run_params['all_events'].append(
-            (self.parent_sim.time, hostID, old_state, new_state))
-        # self.parent_sim.run_params['region_summary'][all_hosts[hostID].reg][old_state] -= 1
-        # self.parent_sim.run_params['region_summary'][all_hosts[hostID].reg][new_state] += 1
+            (self.parent_sim.time, host_id, old_state, new_state))
+        # self.parent_sim.run_params['region_summary'][all_hosts[host_id].reg][old_state] -= 1
+        # self.parent_sim.run_params['region_summary'][all_hosts[host_id].reg][new_state] += 1
 
-    def do_event_adv_raster(self, hostID, all_hosts, all_cells):
-        old_state = all_hosts[hostID].state
+        return (host_id, None, old_state, new_state)
+
+    def do_event_adv_raster(self, host_id, all_hosts, all_cells):
+        """Carry out advance event in raster model."""
+
+        old_state = all_hosts[host_id].state
         new_state = self.parent_sim.params['next_state'](old_state)
 
-        cell = all_cells[all_hosts[hostID].cell_id]
+        cell = all_cells[all_hosts[host_id].cell_id]
 
-        all_hosts[hostID].update_state(new_state, self.parent_sim.time)
+        all_hosts[host_id].update_state(new_state, self.parent_sim.time)
         cell.update(old_state, new_state)
-
-        # Update sporulation rate
-        if self.parent_sim.params['VirtualSporulationStart'] is not None:
-            self.rate_handler.insert_rate(
-                cell.cell_id,
-                cell.states["C"] + cell.states["I"], "Sporulation")
 
         if new_state in "ECDI":
             self.rate_handler.insert_rate(
-                hostID, self.parent_sim.params[new_state + 'AdvRate'], "Advance")
+                host_id, self.parent_sim.params[new_state + 'AdvRate'], "Advance")
         if new_state == "R":
-            self.rate_handler.insert_rate(hostID, 0.0, "Advance")
-
+            self.rate_handler.insert_rate(host_id, 0.0, "Advance")
             # Distribute rate changes to coupled cells
-            for cell2_rel_pos in self.parent_sim.params['coupled_positions']:
-                cell2_pos = tuple(item1 + item2 for item1, item2
-                                  in zip(cell.cell_position, cell2_rel_pos))
-                cell2_id = self.parent_sim.params['cell_map'].get(cell2_pos, None)
-                if cell2_id is None:
-                    continue
-                cell2 = all_cells[cell2_id]
-                if cell2.states["S"] > 0:
-                    old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
-                    new_rate = old_rate - (self.kernel(cell2_rel_pos) *
-                                           cell2.states["S"])
-                    self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
+            self.distribute_removal_raster(host_id, all_hosts, all_cells)
 
         if new_state in "CI":
             # Distribute rate changes to coupled cells
-            for cell2_rel_pos in self.parent_sim.params['coupled_positions']:
-                cell2_pos = tuple(item1 + item2 for item1, item2
-                                  in zip(cell.cell_position, cell2_rel_pos))
-                cell2_id = self.parent_sim.params['cell_map'].get(cell2_pos, None)
-                if cell2_id is None:
-                    continue
-                cell2 = all_cells[cell2_id]
-                if cell2.states["S"] > 0:
-                    old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
-                    new_rate = old_rate + (self.kernel(cell2_rel_pos) *
-                                           cell2.states["S"])
-                    self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
+            self.distribute_infection_raster(host_id, all_hosts, all_cells)
 
         self.parent_sim.run_params['all_events'].append(
-            (self.parent_sim.time, hostID, old_state, new_state))
+            (self.parent_sim.time, host_id, old_state, new_state))
 
-    def do_event_inf_raster(self, cellID, all_hosts, all_cells):
-        cell = all_cells[cellID]
+        return (host_id, cell, old_state, new_state)
+
+    def do_event_inf_raster(self, cell_id, all_hosts, all_cells):
+        """Carry out infection event in Raster model."""
+
+        cell = all_cells[cell_id]
 
         nsus = cell.states["S"]
         if nsus <= 0:
@@ -151,47 +135,34 @@ class EventHandler:
 
         for host in cell.hosts:
             if host.state == "S":
-                hostID = host.host_id
+                host_id = host.host_id
                 break
 
         new_state = self.parent_sim.params['next_state']("S")
-        all_hosts[hostID].update_state(new_state, self.parent_sim.time)
+        all_hosts[host_id].update_state(new_state, self.parent_sim.time)
         cell.update("S", new_state)
 
-        # Update sporulation rate
-        if self.parent_sim.params['VirtualSporulationStart'] is not None:
-            self.rate_handler.insert_rate(
-                cell.cell_id,
-                cell.states["C"] + cell.states["I"], "Sporulation")
-
         # TODO handle if sporulation starts within same cell
-        old_inf_rate = self.rate_handler.get_rate(cellID, "Infection")
+        # TODO combine this into distribution of rates
+        old_inf_rate = self.rate_handler.get_rate(cell_id, "Infection")
         new_inf_rate = old_inf_rate * ((nsus - 1) / nsus)
-        self.rate_handler.insert_rate(cellID, new_inf_rate, "Infection")
+        self.rate_handler.insert_rate(cell_id, new_inf_rate, "Infection")
 
         if new_state in "ECDI":
             self.rate_handler.insert_rate(
-                hostID, self.parent_sim.params[new_state + 'AdvRate'], "Advance")
+                host_id, self.parent_sim.params[new_state + 'AdvRate'], "Advance")
 
         if new_state in "CI":
             # Distribute rate changes to coupled cells
-            for cell2_rel_pos in self.parent_sim.params['coupled_positions']:
-                cell2_pos = tuple(item1 + item2 for item1, item2
-                                  in zip(cell.cell_position, cell2_rel_pos))
-                cell2_id = self.parent_sim.params['cell_map'].get(cell2_pos, None)
-                if cell2_id is None:
-                    continue
-                cell2 = all_cells[cell2_id]
-                if cell2.states["S"] > 0:
-                    old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
-                    new_rate = old_rate + (self.kernel(cell2_rel_pos) *
-                                           cell2.states["S"])
-                    self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
+            self.distribute_infection_raster(host_id, all_hosts, all_cells)
 
         self.parent_sim.run_params['all_events'].append(
-            (self.parent_sim.time, hostID, "S", new_state))
+            (self.parent_sim.time, host_id, "S", new_state))
 
-    def do_event_sporulation(self, cellID, all_hosts, all_cells):
+        return (host_id, cell_id, "S", new_state)
+
+    def do_event_sporulation(self, cell_id, all_hosts, all_cells, debug=False):
+        """Carry out sporulation event in raster model."""
 
         selection_val = np.random.random_sample()
         selected_idx = self.parent_sim.params['vs_kernel'].select_event(selection_val)
@@ -203,35 +174,113 @@ class EventHandler:
         random_num = np.random.random_sample()
 
         cell_pos = tuple(item1 + item2 for item1, item2
-                         in zip(all_cells[cellID].cell_position, cell_rel_pos))
+                         in zip(all_cells[cell_id].cell_position, cell_rel_pos))
 
         cell_id = self.parent_sim.params['cell_map'].get(cell_pos, None)
 
         if cell_id is not None:
             random_num = np.random.random_sample()
             if random_num < (all_cells[cell_id].states["S"] / 100):
-                self.do_event("Infection", cell_id, all_hosts, all_cells)
+                event = self.do_event("Infection", cell_id, all_hosts, all_cells)
+                return event
 
-        return cell_id
+        if debug:
+            return cell_id
 
-    def do_event_cull(self, hostID, all_hosts, all_cells):
-        old_state = all_hosts[hostID].state
+    def do_event_cull(self, host_id, all_hosts, all_cells):
+        """Carry out cull intervention, removing a host."""
+
+        old_state = all_hosts[host_id].state
         new_state = "Culled"
-        all_hosts[hostID].state = new_state
+        cell_id = all_hosts[host_id].cell_id
+        all_hosts[host_id].update_state(new_state, self.parent_sim.time)
 
-        self.rate_handler.insert_rate(hostID, 0.0, "Infection")
-        self.rate_handler.insert_rate(hostID, 0.0, "Advance")
+        self.rate_handler.insert_rate(host_id, 0.0, "Advance")
+
+        if cell_id is None:
+            self.rate_handler.insert_rate(host_id, 0.0, "Infection")
+
         if old_state in "CI":
             # Distribute rate changes
-            for i in range(len(all_hosts)):
-                if all_hosts[i].state == "S":
-                    old_rate = self.rate_handler.get_rate(i, "Infection")
-                    new_rate = old_rate - self.kernel(i, hostID)
-                    self.rate_handler.insert_rate(i, new_rate, "Infection")
-
-        all_hosts[hostID].update_state(new_state, self.parent_sim.time)
+            if cell_id is None:
+                self.distribute_removal_individual(host_id, all_hosts)
+            else:
+                self.distribute_removal_raster(host_id, all_hosts, all_cells)
 
         self.parent_sim.run_params['all_events'].append(
-            (self.parent_sim.time, hostID, old_state, new_state))
-        # self.parent_sim.run_params['region_summary'][all_hosts[hostID].reg][old_state] -= 1
-        # self.parent_sim.run_params['region_summary'][all_hosts[hostID].reg][new_state] += 1
+            (self.parent_sim.time, host_id, old_state, new_state))
+        # self.parent_sim.run_params['region_summary'][all_hosts[host_id].reg][old_state] -= 1
+        # self.parent_sim.run_params['region_summary'][all_hosts[host_id].reg][new_state] += 1
+
+
+        return (host_id, cell_id, old_state, new_state)
+
+    def distribute_infection_individual(self, host_id, all_hosts):
+        """Host has just become infectious - distribute rate changes in Individual model."""
+
+        for host in all_hosts:
+            if host.state == "S":
+                coupled_host_id = host.host_id
+                old_rate = self.rate_handler.get_rate(coupled_host_id, "Infection")
+                new_rate = old_rate + self.kernel(coupled_host_id, host_id)
+                self.rate_handler.insert_rate(coupled_host_id, new_rate, "Infection")
+
+    def distribute_infection_raster(self, host_id, all_hosts, all_cells):
+        """Host has just become infectious - distribute rate changes in Raster model."""
+
+        cell = all_cells[all_hosts[host_id].cell_id]
+
+        # Update sporulation rate
+        if self.parent_sim.params['VirtualSporulationStart'] is not None:
+            self.rate_handler.insert_rate(
+                cell.cell_id,
+                cell.states["C"] + cell.states["I"], "Sporulation")
+
+        # Update coupled cells
+        for cell2_rel_pos in self.parent_sim.params['coupled_positions']:
+            cell2_pos = tuple(item1 + item2 for item1, item2
+                              in zip(cell.cell_position, cell2_rel_pos))
+            cell2_id = self.parent_sim.params['cell_map'].get(cell2_pos, None)
+            if cell2_id is None:
+                continue
+            cell2 = all_cells[cell2_id]
+            if cell2.states["S"] > 0:
+                old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
+                new_rate = old_rate + (self.kernel(cell2_rel_pos) *
+                                       cell2.states["S"])
+                self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
+
+    def distribute_removal_individual(self, host_id, all_hosts):
+        """Host has just lost infectivity - distribute rate changes in Individual model."""
+
+        for host in all_hosts:
+            if host.state == "S":
+                coupled_host_id = host.host_id
+                old_rate = self.rate_handler.get_rate(coupled_host_id, "Infection")
+                new_rate = old_rate - self.kernel(coupled_host_id, host_id)
+                self.rate_handler.insert_rate(coupled_host_id, new_rate, "Infection")
+
+    def distribute_removal_raster(self, host_id, all_hosts, all_cells):
+        """Host has just lost infectivity - distribute rate changes in Raster model."""
+
+        cell = all_cells[all_hosts[host_id].cell_id]
+
+        # Update sporulation rate
+        if self.parent_sim.params['VirtualSporulationStart'] is not None:
+            self.rate_handler.insert_rate(
+                cell.cell_id,
+                cell.states["C"] + cell.states["I"], "Sporulation")
+
+        # Update coupled cells
+        for cell2_rel_pos in self.parent_sim.params['coupled_positions']:
+            cell2_pos = tuple(item1 + item2 for item1, item2
+                              in zip(cell.cell_position, cell2_rel_pos))
+            cell2_id = self.parent_sim.params['cell_map'].get(cell2_pos, None)
+            if cell2_id is None:
+                continue
+            cell2 = all_cells[cell2_id]
+            if cell2.states["S"] > 0:
+                old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
+                new_rate = old_rate - (self.kernel(cell2_rel_pos) *
+                                       cell2.states["S"])
+                self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
