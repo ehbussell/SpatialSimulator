@@ -219,13 +219,12 @@ class Simulator:
 
         end_time = time_mod.time()
 
-        print(len(self.params['init_hosts']),len(self.params['init_cells']))
-
-        if silent is False:
+        if not silent:
+            print(len(self.params['init_hosts']),len(self.params['init_cells']))
             print("Initial setup complete.  "
                   "Time taken: {0:.3f} seconds.".format(end_time - start_time))
 
-    def initialise(self):
+    def initialise(self, silent=False):
         # Setup run parameters to keep track of iteration
         self.run_params = {}
         self.run_params['all_events'] = []
@@ -237,7 +236,8 @@ class Simulator:
         self.all_hosts = self.params['init_hosts']
         self.all_cells = self.params['init_cells']
 
-        print("Copied hosts and cells", flush=True)
+        if not silent:
+            print("Copied hosts and cells", flush=True)
 
         # Zero all rates
         self.rate_handler.zero_rates()
@@ -320,11 +320,11 @@ class Simulator:
 
         end_time = time_mod.time()
 
-        if silent is False:
+        if not silent:
             print("Run {0} of {1} complete.  ".format(iteration+1, self.params['NIterations']) +
                   "Time taken: {0:.3f} seconds.".format(end_time - start_time), end="\n")
 
-        print("Total number of cells infected: {0}".format(np.sum([1 for x in self.all_cells if x.states["I"] > 0])))
+            print("Total number of cells infected: {0}".format(np.sum([1 for x in self.all_cells if x.states["I"] > 0])))
 
         return (self.all_hosts, self.all_cells, self.run_params)
 
@@ -333,7 +333,7 @@ class Simulator:
         return run_data
 
 
-def run_epidemics(params):
+def run_epidemics(params, silent=False):
     all_data = []
     if params['SaveSetup']:
         run_sim = Simulator(params)
@@ -341,16 +341,17 @@ def run_epidemics(params):
     for iteration in range(params['NIterations']):
         if not params['SaveSetup']:
             run_sim = Simulator(params)
-            run_sim.setup()
-            run_sim.initialise()
-        all_hosts, all_cells, run_params = run_sim.run_epidemic(iteration)
+            run_sim.setup(silent=silent)
+            run_sim.initialise(silent=silent)
+        all_hosts, all_cells, run_params = run_sim.run_epidemic(iteration, silent=silent)
         all_data.append(
             run_sim.output_run_data(all_hosts, all_cells, run_params, iteration=iteration))
 
     return all_data
 
 
-def main(configFile="config.ini", keyFile=False, defaultConfig=None, params_options=None):
+def main(configFile="config.ini", keyFile=False, defaultConfig=None, params_options=None,
+         silent=False):
     frame = inspect.stack()[1]
     modu = inspect.getmodule(frame[0])
 
@@ -364,19 +365,19 @@ def main(configFile="config.ini", keyFile=False, defaultConfig=None, params_opti
 
     if keyFile is False and defaultConfig is None:
         params = config.read_config_file(filename=configFile)
+        config.check_params_valid(params)
         if params_options is not None:
             for key, value in params_options.items():
                 # TODO Should check that these are valid additions
                 params[key] = value
 
-        config.check_params_valid(params)
 
         params['call_params'] = copy.deepcopy(params)
         params['call_config_file'] = configFile
         params['call_module'] = str(modu)
         params['call_time'] = time_mod.strftime("%a, %d %b %Y %H:%M:%S", time_mod.localtime())
         params['call_version'] = __version__
-        all_data = run_epidemics(params)
+        all_data = run_epidemics(params, silent=silent)
 
         outputdata.output_log_file(params)
 

@@ -180,7 +180,7 @@ class EventHandler:
 
         if cell_id is not None:
             random_num = np.random.random_sample()
-            if random_num < (all_cells[cell_id].states["S"] / 100):
+            if random_num < (all_cells[cell_id].states["S"] / self.parent_sim.params['MaxHosts']):
                 event = self.do_event("Infection", cell_id, all_hosts, all_cells)
                 return event
 
@@ -199,6 +199,8 @@ class EventHandler:
 
         if cell_id is None:
             self.rate_handler.insert_rate(host_id, 0.0, "Infection")
+        else:
+            all_cells[cell_id].update(old_state, new_state)
 
         if old_state in "CI":
             # Distribute rate changes

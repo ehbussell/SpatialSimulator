@@ -18,6 +18,13 @@ class InterventionHandler:
 
         if scripts is not None:
             intervention_freqs = self.parent_sim.params['InterventionUpdateFrequencies']
+            intervention_options = self.parent_sim.params['InterventionOptions']
+            if isinstance(intervention_options, str):
+                intervention_options = intervention_options.split(',')
+            elif isinstance(intervention_options, list):
+                pass
+            else:
+                raise TypeError("InterventionOptions must be list or string!")
 
             if isinstance(scripts, str):
                 intervention_scripts = scripts.split(",")
@@ -25,20 +32,25 @@ class InterventionHandler:
                     intervention_freqs = [None]*len(intervention_scripts)
                 else:
                     intervention_freqs = [float(x) for x in intervention_freqs.split(",")]
-                for script, freq in zip(intervention_scripts, intervention_freqs):
+                zipped_data = zip(intervention_scripts, intervention_freqs, intervention_options)
+                for script, freq, options in zipped_data:
                     intervention_module = importlib.import_module(script)
                     intervention_module = importlib.reload(intervention_module)
                     self.interventions.append(intervention_module.Intervention(
-                        freq, self.parent_sim.params['init_hosts']))
+                        freq, self.parent_sim.params['init_hosts'],
+                        self.parent_sim.params['init_cells']), options)
 
             elif isinstance(scripts, list):
                 if intervention_freqs is None:
                     intervention_freqs = [None]*len(scripts)
                 else:
                     intervention_freqs = [float(x) for x in intervention_freqs.split(",")]
-                for intervention_class, freq in zip(scripts, intervention_freqs):
-                    self.interventions.append(intervention_class(
-                        freq, self.parent_sim.params['init_hosts']))
+                zipped_data = zip(scripts, intervention_freqs, intervention_options)
+                for intervention_class, freq, options in zipped_data:
+                    self.interventions.append(
+                        intervention_class(
+                            freq, self.parent_sim.params['init_hosts'],
+                            self.parent_sim.params['init_cells'], options))
 
             else:
                 raise ValueError("InterventionScripts must be list or string!")

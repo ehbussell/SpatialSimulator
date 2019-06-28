@@ -1,5 +1,3 @@
-# TODO FIXME broken now that event returned by do_event only gives cell id if infected
-
 import os
 import glob
 import unittest

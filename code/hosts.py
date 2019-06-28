@@ -48,7 +48,7 @@ class Cell(object):
     def __init__(self, cell_position, hosts=None, cell_id=None):
         self.cell_id = cell_id
         self.cell_position = cell_position
-        all_states = ["S", "E", "C", "D", "I", "R"]
+        all_states = ["S", "E", "C", "D", "I", "R", "Culled"]
         self.states = {state: 0 for state in all_states}
         
         if hosts is not None:

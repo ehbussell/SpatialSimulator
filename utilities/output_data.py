@@ -207,6 +207,7 @@ def create_cell_data(output_file_stub, target_header=None, ignore_outside_raster
     for run_number, run in enumerate(all_data):
         host_map = {}
         states = list(params['Model'])
+        states.append("Culled")
         state_map = {state: i for i, state in enumerate(states)}
 
         cell_data = {

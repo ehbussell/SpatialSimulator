@@ -7,11 +7,12 @@ class Intervention:
     """Class to hold intervention methods."""
 
     # Initialisation sets up defining features of intervention
-    def __init__(self, update_freq, all_hosts, all_cells=None):
+    def __init__(self, update_freq, all_hosts, all_cells=None, options=None):
         # Initialisation takes the update frequency from the config file. This is how often the
         # class update function is called. The all_hosts argument gives the full list of hosts at
         # the start of the simulation which may be required to initialise sizes. The argument
-        # all_cells will provide list of cells if simulation type is "RASTER"
+        # all_cells will provide list of cells if simulation type is "RASTER". Options can be passed
+        # through InterventionOptions parameter in config.
 
         # Set update frequency
         self.update_freq = update_freq

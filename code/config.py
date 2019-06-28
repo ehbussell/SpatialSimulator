@@ -26,7 +26,7 @@ default_config = OrderedDict([
         ('SimulationType', (True, "INDIVIDUAL", "Type of simulation to run.  Options are: "
                             "INDIVIDUAL, RASTER.", str)),
         ('VirtualSporulationStart', (False, None, "Distance in cells to start using VS rather than"
-                            "coupling.  Default: No VS", int)),
+                                     "coupling.  Default: No VS", int)),
         ('FinalTime', (True, 10.0, "Time to stop the simulation.", float)),
         ('HostPosFile', (True, "hosts.txt", "Name of file containing host locations.  Can also "
                          "specify comma separated list of multiple files.", str)),
@@ -42,6 +42,7 @@ default_config = OrderedDict([
         ('NIterations', (False, 1, "Number of individual simulations to run",
                          int)),
         ('NRegions', (False, 1, "Number of distinct regions.", int)),
+        ('MaxHosts', (False, 100, "Maximum number of hosts per cell in raster model.", int)),
     ])),
     ('Output', OrderedDict([
         ('OutputHostData', (False, True, "Whether to output transition times for each host.",
