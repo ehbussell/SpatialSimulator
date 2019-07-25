@@ -86,9 +86,9 @@ class Simulator:
         self.params['next_state'] = next_state_func
 
         # Read in hosts
-        self.params['init_hosts'], self.params['init_cells'] = hosts.read_host_files(
-                self.params['HostPosFile'].split(","), self.params['InitCondFile'].split(","),
-                self.params['RegionFile'], states, sim_type=self.params['SimulationType'])
+        self.params['init_hosts'], self.params['init_cells'], self.params['header'] = hosts.read_host_files(
+            self.params['HostPosFile'].split(","), self.params['InitCondFile'].split(","),
+            self.params['RegionFile'], states, sim_type=self.params['SimulationType'])
 
         self.params['nhosts'] = len(self.params['init_hosts'])
         if self.params['init_cells'] is not None:
@@ -137,9 +137,6 @@ class Simulator:
                     self.params['vs_kernel'].insert_rate(i, kernel_val)
 
                 self.params['spore_rate'] = self.params['InfRate'] * spore_prob
-
-        # self.params['init_region_summary'] = [{key: 0 for key in states + ["Culled"]}
-        #                                       for _ in range(self.params['NRegions'])]
 
         self.rate_handler = RateHandler(self)
 
@@ -265,8 +262,6 @@ class Simulator:
             raise ValueError("Unrecognised SimulationType!")
 
         self.time = 0
-        # self.run_params['summary_dump'].append(
-        #     (self.time, copy.deepcopy(self.params['init_region_summary'])))
 
         # Initialise interventions
         self.intervention_handler.initialise_rates(self.all_hosts, self.all_cells)
@@ -277,11 +272,11 @@ class Simulator:
 
         # Set time until first intervention
         next_intervention_time = self.intervention_handler.next_intervention_time
-        if self.params['SummaryOutputFreq'] != 0:
-            nextSummaryDumpTime = self.time + self.params['SummaryOutputFreq']
+        if self.params['RasterOutputFreq'] != 0:
+            outputdata.output_raster_data(self, time=self.time, iteration=iteration)
+            nextRasterDumpTime = self.time + self.params['RasterOutputFreq']
         else:
-            nextSummaryDumpTime = np.inf
-
+            nextRasterDumpTime = np.inf
 
         # Run gillespie loop
         while True:
@@ -292,9 +287,10 @@ class Simulator:
             else:
                 nextTime = self.time + (-1.0/totRate)*np.log(np.random.random_sample())
 
-            if nextTime >= nextSummaryDumpTime:
-                print(nextSummaryDumpTime)
-                nextSummaryDumpTime += self.params['SummaryOutputFreq']
+            while np.minimum(nextTime, next_intervention_time) >= nextRasterDumpTime:
+                self.time = nextRasterDumpTime
+                outputdata.output_raster_data(self, time=self.time, iteration=iteration)
+                nextRasterDumpTime += self.params['RasterOutputFreq']
 
             if nextTime >= next_intervention_time and nextTime != np.inf:
                 if next_intervention_time > self.params['FinalTime']:
@@ -304,15 +300,6 @@ class Simulator:
                 print("HERE", next_intervention_time)
                 self.intervention_handler.update(self.all_hosts, self.time, self.all_cells)
                 next_intervention_time = self.intervention_handler.next_intervention_time
-
-                # else:
-                #     if nextSummaryDumpTime >= self.params['FinalTime']:
-                #         break
-                #     # Dump summary data
-                #     self.time = nextSummaryDumpTime
-                #     self.run_params['summary_dump'].append(
-                #         (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))
-                #     nextSummaryDumpTime += self.params['SummaryOutputFreq']
             else:
                 if nextTime > self.params['FinalTime']:
                     break
@@ -323,9 +310,6 @@ class Simulator:
                 if self.params['UpdateOnAllEvents'] is True:
                     self.intervention_handler.update_on_event(event, self.all_hosts, self.time,
                                                               self.all_cells)
-
-        # self.run_params['summary_dump'].append(
-        #     (nextSummaryDumpTime, copy.deepcopy(self.run_params['region_summary'])))
 
         end_time = time_mod.time()
 

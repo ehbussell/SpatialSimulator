@@ -57,7 +57,7 @@ class Cell(object):
         self.cell_position = cell_position
         all_states = ["S", "E", "C", "D", "I", "R", "Culled"]
         self.states = {state: 0 for state in all_states}
-        
+
         if hosts is not None:
             self.hosts = hosts
             for host in self.hosts:
@@ -99,7 +99,7 @@ def read_host_files(host_pos_files, init_cond_files, region_files, states, sim_t
                 read_regions(hosts, region_files[i])
             all_hosts.extend(hosts)
 
-        return (all_hosts, None)
+        return (all_hosts, None, None)
 
     if sim_type == "RASTER":
 
@@ -114,6 +114,9 @@ def read_host_files(host_pos_files, init_cond_files, region_files, states, sim_t
         for state in states:
             state_rasters.append(raster_tools.RasterData.from_file(
                 init_cond_files[0] + "_" + state + ".txt"))
+
+        # Save raster header from host file
+        header = host_raster.header_vals
 
         all_cells = []
         all_hosts = []
@@ -146,7 +149,7 @@ def read_host_files(host_pos_files, init_cond_files, region_files, states, sim_t
                 all_cells.append(Cell((row, col), hosts, cell_id))
                 cell_id += 1
 
-        return (all_hosts, all_cells)
+        return (all_hosts, all_cells, header)
 
 
 def read_host_file(filename, default_region=0, hostID_start=0):

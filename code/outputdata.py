@@ -1,9 +1,11 @@
 """Methods for outputting run data from the simulation."""
 
 import io
+import numpy as np
 import os
 import pandas as pd
 from . import config
+import raster_tools
 
 def output_all_run_data(parent_sim, all_hosts, all_cells, run_params, iteration=0):
     return_data = {}
@@ -38,6 +40,48 @@ def output_all_run_data(parent_sim, all_hosts, all_cells, run_params, iteration=
 
     return return_data
 
+
+def output_raster_data(parent_sim, time=None, iteration=None):
+    """Output current state raster"""
+
+    print("Starting raster output at time", time)
+
+    all_cells = parent_sim.all_cells
+    header = parent_sim.params['header']
+    states = list(parent_sim.params['Model']) + ["Culled"]
+
+    output_stub = parent_sim.params['RasterFileStub']
+
+    if iteration is not None:
+        iterstub = "_" + str(iteration)
+    else:
+        iterstub = ""
+
+    if time is not None:
+        timestub = "_" + str(time)
+    else:
+        timestub = ""
+
+    for state in states:
+        cell_state = np.full((header['nrows'], header['ncols']), header['NODATA_value'])
+        for row in range(header['nrows']):
+            for col in range(header['ncols']):
+                cell_id = parent_sim.params['cell_map'].get((row, col), None)
+                if cell_id is not None:
+                    cell_state[row, col] = all_cells[cell_id].states[state]
+        cell_state = cell_state.reshape((header['nrows'], header['ncols']))
+
+        raster = raster_tools.RasterData(
+            shape=(header['nrows'], header['ncols']),
+            llcorner=(header['xllcorner'], header['yllcorner']),
+            cellsize=header['cellsize'],
+            NODATA_value=header['NODATA_value'],
+            array=cell_state
+        )
+
+        raster.to_file(output_stub + iterstub + "_" + state + timestub + ".txt")
+    
+    print("Finsihed raster output at time", time)
 
 def output_data_hosts(all_hosts, all_cells, params, file_stub="output", iteration=0):
     """Output state transition times for each host."""

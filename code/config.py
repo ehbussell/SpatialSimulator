@@ -49,15 +49,16 @@ default_config = OrderedDict([
                             bool)),
         ('OutputEventData', (False, True, "Whether to output all individual event details.",
                              bool)),
-        ('SummaryOutputFreq', (True, 0.2, "How often to output region summary.  "
-                               "Set to zero to suppress output.", float)),
+        ('RasterOutputFreq', (True, 0.2, "How often to output raster of simulation state.  "
+                              "Set to zero to suppress output.", float)),
         ('OutputFiles', (False, True, "Whether to output data to files.  "
                          "If False only python objects are returned.", bool)),
         ('OutputFileStub', (False, "output", "File path stub for output files", str)),
+        ('RasterFileStub', (False, "raster_output", "File path stub for output raster files", str)),
     ])),
     ('Optimisation', OrderedDict([
         ('SaveSetup', (False, True, "Whether or not to save the initial rates and states to re-use."
-                         " This can be slower for large numbers of hosts.", bool)),
+                       " This can be slower for large numbers of hosts.", bool)),
         ('CacheKernel', (False, False, "Whether or not to cache the full "
                          "kernel at the start of the simulation", bool)),
         ('RateStructure-Infection', (False, "ratesum",
