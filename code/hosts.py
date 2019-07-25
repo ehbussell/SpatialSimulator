@@ -35,6 +35,13 @@ class Host(object):
 
         return repr_str
 
+    def initialise_state(self, start_state):
+        """Update state at start time."""
+
+        self.trans_times.append((0.0, None, start_state))
+        self.state = start_state
+        self.init_state = start_state
+
     def update_state(self, new_state, time):
         """Update the current state of the host, storing transition time."""
 
@@ -87,7 +94,7 @@ def read_host_files(host_pos_files, init_cond_files, region_files, states, sim_t
 
         for i, host_file in enumerate(host_pos_files):
             hosts = read_host_file(host_file, default_region=i, hostID_start=len(all_hosts))
-            read_init_cond(hosts, init_cond_files[i])
+            hosts = read_init_cond(hosts, init_cond_files[i])
             if region_files[i] is not None:
                 read_regions(hosts, region_files[i])
             all_hosts.extend(hosts)
@@ -165,9 +172,9 @@ def read_init_cond(all_hosts, filename):
 
         for i in range(nhosts):
             state = f.readline().strip()
-            all_hosts[i].state = state
-            all_hosts[i].update_state(state, 0.0)
+            all_hosts[i].initialise_state(state)
 
+    return all_hosts
 
 def read_regions(all_hosts, filename):
     """Read region file giving regions to which hosts belong."""

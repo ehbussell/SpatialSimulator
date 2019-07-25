@@ -44,7 +44,7 @@ def calc_dist_kernel(hosts, kernel):
 
     for i in range(nhosts):
         for j in range(i):
-            dist = np.linalg.norm([hosts[i].x-hosts[j].x, hosts[i].y-hosts[j].y])
+            dist = np.linalg.norm([hosts[i].xpos-hosts[j].xpos, hosts[i].ypos-hosts[j].ypos])
             distances[i, j] = dist
             distances[j, i] = dist
 
@@ -200,7 +200,7 @@ class Simulator:
                         cell2 = self.params['init_cells'][cell2_id]
                         self.params['init_inf_rates'][cell2_id] += cell2.states["S"] * (
                             (cell.states["C"] + cell.states["I"]) *
-                            self.event_handler.kernel(cell2_rel_pos))
+                            self.event_handler.kernel(cell2_rel_pos)) / self.params['MaxHosts']
 
                     if self.params['VirtualSporulationStart'] is not None:
                         self.params['init_spore_rates'][cell.cell_id] = (cell.states["C"] +
@@ -220,7 +220,10 @@ class Simulator:
         end_time = time_mod.time()
 
         if not silent:
-            print(len(self.params['init_hosts']),len(self.params['init_cells']))
+            if self.params['init_hosts'] is not None:
+                print("Num init hosts: ", len(self.params['init_hosts']))
+            if self.params['init_cells'] is not None:
+                print("Num init cells: ", len(self.params['init_cells']))
             print("Initial setup complete.  "
                   "Time taken: {0:.3f} seconds.".format(end_time - start_time))
 
@@ -264,10 +267,6 @@ class Simulator:
         self.time = 0
         # self.run_params['summary_dump'].append(
         #     (self.time, copy.deepcopy(self.params['init_region_summary'])))
-        # if self.params['SummaryOutputFreq'] != 0:
-        #     nextSummaryDumpTime = self.time + self.params['SummaryOutputFreq']
-        # else:
-        #     nextSummaryDumpTime = np.inf
 
         # Initialise interventions
         self.intervention_handler.initialise_rates(self.all_hosts, self.all_cells)
@@ -278,6 +277,11 @@ class Simulator:
 
         # Set time until first intervention
         next_intervention_time = self.intervention_handler.next_intervention_time
+        if self.params['SummaryOutputFreq'] != 0:
+            nextSummaryDumpTime = self.time + self.params['SummaryOutputFreq']
+        else:
+            nextSummaryDumpTime = np.inf
+
 
         # Run gillespie loop
         while True:
@@ -288,6 +292,10 @@ class Simulator:
             else:
                 nextTime = self.time + (-1.0/totRate)*np.log(np.random.random_sample())
 
+            if nextTime >= nextSummaryDumpTime:
+                print(nextSummaryDumpTime)
+                nextSummaryDumpTime += self.params['SummaryOutputFreq']
+
             if nextTime >= next_intervention_time and nextTime != np.inf:
                 if next_intervention_time > self.params['FinalTime']:
                     break
@@ -296,6 +304,7 @@ class Simulator:
                 print("HERE", next_intervention_time)
                 self.intervention_handler.update(self.all_hosts, self.time, self.all_cells)
                 next_intervention_time = self.intervention_handler.next_intervention_time
+
                 # else:
                 #     if nextSummaryDumpTime >= self.params['FinalTime']:
                 #         break
@@ -324,7 +333,8 @@ class Simulator:
             print("Run {0} of {1} complete.  ".format(iteration+1, self.params['NIterations']) +
                   "Time taken: {0:.3f} seconds.".format(end_time - start_time), end="\n")
 
-            print("Total number of cells infected: {0}".format(np.sum([1 for x in self.all_cells if x.states["I"] > 0])))
+            if self.all_cells is not None:
+                print("Total number of cells infected: {0}".format(np.sum([1 for x in self.all_cells if x.states["I"] > 0])))
 
         return (self.all_hosts, self.all_cells, self.run_params)
 
@@ -338,6 +348,7 @@ def run_epidemics(params, silent=False):
     if params['SaveSetup']:
         run_sim = Simulator(params)
         run_sim.setup()
+        run_sim.initialise(silent=silent)
     for iteration in range(params['NIterations']):
         if not params['SaveSetup']:
             run_sim = Simulator(params)

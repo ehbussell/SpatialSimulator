@@ -8,7 +8,7 @@ from matplotlib import colors
 from matplotlib.animation import FuncAnimation
 from ..code import hosts
 
-plt.style.use("ggplot")
+plt.style.use("seaborn-whitegrid")
 graphParams = {
    'axes.labelsize': 10,
    'font.size': 10,
@@ -43,7 +43,7 @@ def plot_host_landscape(host_file, region_file=None, save_file=None):
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
     for region in regions:
-        x, y = zip(*[(host.x, host.y) for host in all_hosts if host.reg == region])
+        x, y = zip(*[(host.xpos, host.ypos) for host in all_hosts if host.reg == region])
         ax1.plot(x, y, '.', label="Region " + str(region))
     ax1.set_xlabel("X Position")
     ax1.set_ylabel("Y Position")

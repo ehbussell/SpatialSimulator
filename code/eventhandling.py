@@ -249,7 +249,7 @@ class EventHandler:
             if cell2.states["S"] > 0:
                 old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
                 new_rate = old_rate + (self.kernel(cell2_rel_pos) *
-                                       cell2.states["S"])
+                                       cell2.states["S"]) / self.parent_sim.params['MaxHosts']
                 self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
 
     def distribute_removal_individual(self, host_id, all_hosts):

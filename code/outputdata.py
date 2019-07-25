@@ -24,11 +24,11 @@ def output_all_run_data(parent_sim, all_hosts, all_cells, run_params, iteration=
                                         file_stub=filestub)
         return_data['event_data'] = event_data
 
-    if parent_sim.params['SummaryOutputFreq'] != 0:
-        raise NotImplementedError
-        summary_data = output_data_summary(parent_sim.params, run_params, iteration=iteration,
-                                           file_stub=filestub)
-        return_data['summary_data'] = summary_data
+    # if parent_sim.params['SummaryOutputFreq'] != 0:
+    #     raise NotImplementedError
+    #     summary_data = output_data_summary(parent_sim.params, run_params, iteration=iteration,
+    #                                        file_stub=filestub)
+    #     return_data['summary_data'] = summary_data
 
     if parent_sim.params['InterventionScripts'] is not None:
         control_data = parent_sim.intervention_handler.output(iteration=iteration,
@@ -48,7 +48,7 @@ def output_data_hosts(all_hosts, all_cells, params, file_stub="output", iteratio
     filename = file_stub + "_hosts_" + str(iteration) + ".csv"
 
     if params['SimulationType'] == "INDIVIDUAL":
-        col_names = ["hostID", "posX", "posY", "region"] + ["timeEnter"+state for state in states]
+        col_names = ["hostID", "posX", "posY", "region", "initial_state"] + ["timeEnter"+state for state in states]
     else:
         col_names = ["hostID", "posX", "posY", "cell", "cell_pos", "region", "initial_state"] + [
             "timeEnter" + state for state in states]
