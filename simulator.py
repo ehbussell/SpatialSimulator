@@ -86,9 +86,18 @@ class Simulator:
         self.params['next_state'] = next_state_func
 
         # Read in hosts
-        self.params['init_hosts'], self.params['init_cells'], self.params['header'] = hosts.read_host_files(
+        init_hosts, init_cells, header = hosts.read_host_files(
             self.params['HostPosFile'].split(","), self.params['InitCondFile'].split(","),
             self.params['RegionFile'], states, sim_type=self.params['SimulationType'])
+        self.params['init_hosts'] = init_hosts
+        self.params['init_cells'] = init_cells
+        self.params['header'] = header
+
+        # Read in susceptibility and infectiousness
+        hosts.read_sus_inf_files(self.params['init_cells'], self.params['header'],
+                                 self.params['SusceptibilityFile'],
+                                 self.params['InfectiousnessFile'],
+                                 sim_type=self.params['SimulationType'])
 
         self.params['nhosts'] = len(self.params['init_hosts'])
         if self.params['init_cells'] is not None:
@@ -195,13 +204,14 @@ class Simulator:
                         if cell2_id is None:
                             continue
                         cell2 = self.params['init_cells'][cell2_id]
-                        self.params['init_inf_rates'][cell2_id] += cell2.states["S"] * (
-                            (cell.states["C"] + cell.states["I"]) *
+                        self.params['init_inf_rates'][cell2_id] += (
+                            cell2.susceptibility * cell2.states["S"] *
+                            (cell.states["C"] + cell.states["I"]) * cell.infectiousness *
                             self.event_handler.kernel(cell2_rel_pos)) / self.params['MaxHosts']
 
                     if self.params['VirtualSporulationStart'] is not None:
-                        self.params['init_spore_rates'][cell.cell_id] = (cell.states["C"] +
-                                                                         cell.states["I"])
+                        self.params['init_spore_rates'][cell.cell_id] = (
+                            cell.states["C"] + cell.states["I"]) * cell.infectiousness
 
         else:
             raise ValueError("Unrecognised SimulationType!")
@@ -288,6 +298,8 @@ class Simulator:
                 nextTime = self.time + (-1.0/totRate)*np.log(np.random.random_sample())
 
             while np.minimum(nextTime, next_intervention_time) >= nextRasterDumpTime:
+                if nextRasterDumpTime > self.params['FinalTime']:
+                    break
                 self.time = nextRasterDumpTime
                 outputdata.output_raster_data(self, time=self.time, iteration=iteration)
                 nextRasterDumpTime += self.params['RasterOutputFreq']

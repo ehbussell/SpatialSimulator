@@ -33,6 +33,8 @@ default_config = OrderedDict([
         ('InitCondFile', (True, "hosts_init.txt", "Name of file containing initial host states."
                           "If HostPosFile is a list, this must be a corresponding comma "
                           "separated list", str)),
+        ('SusceptibilityFile', (False, None, "Name of file containing cell susceptibility.", str)),
+        ('InfectiousnessFile', (False, None, "Name of file containing cell infectiousness.", str)),
         ('RegionFile', (False, None, "Name of file containing region name for each"
                         " host.  If not specified no region based data is produced.  If "
                         "HostPosFile is a list, this must be a corresponding comma separated "

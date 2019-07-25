@@ -1,5 +1,6 @@
 """Methods for handling host detail initialisation, including all reading of host files."""
 
+import numpy as np
 import raster_tools
 
 
@@ -57,6 +58,8 @@ class Cell(object):
         self.cell_position = cell_position
         all_states = ["S", "E", "C", "D", "I", "R", "Culled"]
         self.states = {state: 0 for state in all_states}
+        self.susceptibility = 1
+        self.infectiousness = 1
 
         if hosts is not None:
             self.hosts = hosts
@@ -151,6 +154,41 @@ def read_host_files(host_pos_files, init_cond_files, region_files, states, sim_t
 
         return (all_hosts, all_cells, header)
 
+def read_sus_inf_files(all_cells, header, sus_file, inf_file, sim_type="INDIVIDUAL"):
+    """Read all files associated with host susceptibility and infectiousness."""
+
+    if sim_type == "INDIVIDUAL":
+
+        return
+
+    if sim_type == "RASTER":
+
+        try:
+            sus_raster = raster_tools.RasterData.from_file(sus_file)
+        except FileNotFoundError:
+            sus_raster = raster_tools.RasterData(
+                shape=(header['nrows'], header['ncols']),
+                llcorner=(header['xllcorner'], header['yllcorner']),
+                cellsize=header['cellsize'],
+                NODATA_value=header['NODATA_value'],
+                array=np.ones((header['nrows'], header['ncols']))
+            )
+
+        try:
+            inf_raster = raster_tools.RasterData.from_file(inf_file)
+        except FileNotFoundError:
+            inf_raster = raster_tools.RasterData(
+                shape=(header['nrows'], header['ncols']),
+                llcorner=(header['xllcorner'], header['yllcorner']),
+                cellsize=header['cellsize'],
+                NODATA_value=header['NODATA_value'],
+                array=np.ones((header['nrows'], header['ncols']))
+            )
+
+        for cell in all_cells:
+            row, col = cell.cell_position
+            cell.susceptibility = sus_raster.array[row, col]
+            cell.infectiousness = inf_raster.array[row, col]
 
 def read_host_file(filename, default_region=0, hostID_start=0):
     """Read host file detailing host positions."""

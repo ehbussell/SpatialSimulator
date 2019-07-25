@@ -180,7 +180,9 @@ class EventHandler:
 
         if cell_id is not None:
             random_num = np.random.random_sample()
-            if random_num < (all_cells[cell_id].states["S"] / self.parent_sim.params['MaxHosts']):
+            infection_prob = all_cells[cell_id].susceptibility * (
+                all_cells[cell_id].states["S"] / self.parent_sim.params['MaxHosts'])
+            if random_num < infection_prob:
                 event = self.do_event("Infection", cell_id, all_hosts, all_cells)
                 return event
 
@@ -236,7 +238,7 @@ class EventHandler:
         if self.parent_sim.params['VirtualSporulationStart'] is not None:
             self.rate_handler.insert_rate(
                 cell.cell_id,
-                cell.states["C"] + cell.states["I"], "Sporulation")
+                (cell.states["C"] + cell.states["I"]) * cell.infectiousness, "Sporulation")
 
         # Update coupled cells
         for cell2_rel_pos in self.parent_sim.params['coupled_positions']:
@@ -248,8 +250,9 @@ class EventHandler:
             cell2 = all_cells[cell2_id]
             if cell2.states["S"] > 0:
                 old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
-                new_rate = old_rate + (self.kernel(cell2_rel_pos) *
-                                       cell2.states["S"]) / self.parent_sim.params['MaxHosts']
+                new_rate = old_rate + (
+                    cell.infectiousness * self.kernel(cell2_rel_pos) *
+                    cell2.susceptibility * cell2.states["S"] / self.parent_sim.params['MaxHosts'])
                 self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
 
     def distribute_removal_individual(self, host_id, all_hosts):
@@ -271,7 +274,7 @@ class EventHandler:
         if self.parent_sim.params['VirtualSporulationStart'] is not None:
             self.rate_handler.insert_rate(
                 cell.cell_id,
-                cell.states["C"] + cell.states["I"], "Sporulation")
+                (cell.states["C"] + cell.states["I"]) * cell.infectiousness, "Sporulation")
 
         # Update coupled cells
         for cell2_rel_pos in self.parent_sim.params['coupled_positions']:
@@ -283,6 +286,7 @@ class EventHandler:
             cell2 = all_cells[cell2_id]
             if cell2.states["S"] > 0:
                 old_rate = self.rate_handler.get_rate(cell2_id, "Infection")
-                new_rate = old_rate - (self.kernel(cell2_rel_pos) *
-                                       cell2.states["S"])
+                new_rate = old_rate - (
+                    cell.infectiousness * self.kernel(cell2_rel_pos) *
+                    cell2.susceptibility * cell2.states["S"] / self.parent_sim.params['MaxHosts'])
                 self.rate_handler.insert_rate(cell2_id, new_rate, "Infection")
