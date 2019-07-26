@@ -118,6 +118,13 @@ def read_host_files(host_pos_files, init_cond_files, region_files, states, sim_t
             state_rasters.append(raster_tools.RasterData.from_file(
                 init_cond_files[0] + "_" + state + ".txt"))
 
+        # Check if Culled initial conditions also present
+        try:
+            culled_raster = raster_tools.RasterData.from_file(init_cond_files[0] + "_Culled.txt")
+        except FileNotFoundError:
+            culled_raster = None
+            
+
         # Save raster header from host file
         header = host_raster.header_vals
 
@@ -144,6 +151,14 @@ def read_host_files(host_pos_files, init_cond_files, region_files, states, sim_t
                         host_id += 1
                         hosts.append(host)
                         all_hosts.append(host)
+                    
+                if culled_raster is not None:
+                    nhosts_state = int(culled_raster.array[row, col])
+                    for j in range(nhosts_state):
+                        host = Host(x, y, 'Culled', host_id=host_id, cell_id=cell_id)
+                        host_id += 1
+                        hosts.append(host)
+                        all_hosts.append(host)
 
                 if len(hosts) != nhosts:
                     print(nhosts, len(hosts))
@@ -163,27 +178,33 @@ def read_sus_inf_files(all_cells, header, sus_file, inf_file, sim_type="INDIVIDU
 
     if sim_type == "RASTER":
 
-        try:
-            sus_raster = raster_tools.RasterData.from_file(sus_file)
-        except FileNotFoundError:
-            sus_raster = raster_tools.RasterData(
-                shape=(header['nrows'], header['ncols']),
-                llcorner=(header['xllcorner'], header['yllcorner']),
-                cellsize=header['cellsize'],
-                NODATA_value=header['NODATA_value'],
-                array=np.ones((header['nrows'], header['ncols']))
-            )
+        if isinstance(sus_file, raster_tools.RasterData):
+            sus_raster = sus_file
+        else:
+            try:
+                sus_raster = raster_tools.RasterData.from_file(sus_file)
+            except FileNotFoundError:
+                sus_raster = raster_tools.RasterData(
+                    shape=(header['nrows'], header['ncols']),
+                    llcorner=(header['xllcorner'], header['yllcorner']),
+                    cellsize=header['cellsize'],
+                    NODATA_value=header['NODATA_value'],
+                    array=np.ones((header['nrows'], header['ncols']))
+                )
 
-        try:
-            inf_raster = raster_tools.RasterData.from_file(inf_file)
-        except FileNotFoundError:
-            inf_raster = raster_tools.RasterData(
-                shape=(header['nrows'], header['ncols']),
-                llcorner=(header['xllcorner'], header['yllcorner']),
-                cellsize=header['cellsize'],
-                NODATA_value=header['NODATA_value'],
-                array=np.ones((header['nrows'], header['ncols']))
-            )
+        if isinstance(inf_file, raster_tools.RasterData):
+            inf_raster = inf_file
+        else:
+            try:
+                inf_raster = raster_tools.RasterData.from_file(inf_file)
+            except FileNotFoundError:
+                inf_raster = raster_tools.RasterData(
+                    shape=(header['nrows'], header['ncols']),
+                    llcorner=(header['xllcorner'], header['yllcorner']),
+                    cellsize=header['cellsize'],
+                    NODATA_value=header['NODATA_value'],
+                    array=np.ones((header['nrows'], header['ncols']))
+                )
 
         for cell in all_cells:
             row, col = cell.cell_position
