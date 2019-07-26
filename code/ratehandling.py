@@ -106,3 +106,6 @@ class RateHandler:
 
     def get_rate(self, hostID, rate_type):
         return self.all_rates[rate_type].get_rate(hostID)
+
+    def bulk_insert(self, rates, rate_type):
+        return self.all_rates[rate_type].bulk_insert(rates)

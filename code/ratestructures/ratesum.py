@@ -37,3 +37,10 @@ class RateSum:
     def zero_rates(self):
         self.rates = np.zeros(self.nevents)
         self.full_resum()
+
+    def bulk_insert(self, rates):
+        if len(rates) != self.nevents:
+            raise RuntimeError("Wrong length of rates for bulk insert!")
+
+        self.rates = np.array(rates)
+        self.full_resum()

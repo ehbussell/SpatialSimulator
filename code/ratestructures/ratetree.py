@@ -17,6 +17,7 @@ class RateTree:
         self._calculate_tree_levels()
 
         self.zero_rates()
+        self.totrate = 0
 
     def insert_rate(self, pos, rate):
         level = 1
@@ -63,6 +64,8 @@ class RateTree:
                     self.rates[self.tree_levels[i-1] + 2*j + 1]
             level_length /= 2
 
+        self.totrate = self.rates[self.tree_levels[self.n_tree_levels]]
+
     def zero_rates(self):
         for i in range(2*self.padded_length - 1):
             self.rates[i] = 0
@@ -78,3 +81,11 @@ class RateTree:
             self.tree_levels[i] = int(level_start)
             level_start += level_length
             level_length /= 2
+
+    def bulk_insert(self, rates):
+        if len(rates) != self.nevents:
+            raise RuntimeError("Wrong length of rates for bulk insert!")
+
+        self.zero_rates()
+        self.rates[self.tree_levels[1]:(self.tree_levels[1]+self.nevents)] = rates
+        self.full_resum()

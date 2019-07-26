@@ -252,21 +252,18 @@ class Simulator:
         # Zero all rates
         self.rate_handler.zero_rates()
 
-        # Initialise rates from setup
+        # Initialise rates from setup in bulk
         if self.params['SimulationType'] == "INDIVIDUAL":
-            for i in range(self.params['nhosts']):
-                self.rate_handler.insert_rate(i, self.params['init_inf_rates'][i], "Infection")
-                self.rate_handler.insert_rate(i, self.params['init_adv_rates'][i], "Advance")
+            self.rate_handler.bulk_insert(self.params['init_inf_rates'], "Infection")
+            self.rate_handler.bulk_insert(self.params['init_adv_rates'], "Advance")
 
         elif self.params['SimulationType'] == "RASTER":
-            for i in range(self.params['nhosts']):
-                self.rate_handler.insert_rate(i, self.params['init_adv_rates'][i], "Advance")
+            self.rate_handler.bulk_insert(self.params['init_adv_rates'], "Advance")
 
-            for j in range(self.params['ncells']):
-                self.rate_handler.insert_rate(j, self.params['init_inf_rates'][j], "Infection")
-                if self.params['VirtualSporulationStart'] is not None:
-                    self.rate_handler.insert_rate(
-                        j, self.params['init_spore_rates'][j], "Sporulation")
+            self.rate_handler.bulk_insert(self.params['init_inf_rates'], "Infection")
+            if self.params['VirtualSporulationStart'] is not None:
+                self.rate_handler.bulk_insert(self.params['init_spore_rates'], "Sporulation")
+
 
         else:
             raise ValueError("Unrecognised SimulationType!")
@@ -323,6 +320,7 @@ class Simulator:
                     self.intervention_handler.update_on_event(event, self.all_hosts, self.time,
                                                               self.all_cells)
 
+        self.time = self.params['FinalTime']
         end_time = time_mod.time()
 
         if not silent:
@@ -331,6 +329,8 @@ class Simulator:
 
             if self.all_cells is not None:
                 print("Total number of cells infected: {0}".format(np.sum([1 for x in self.all_cells if x.states["I"] > 0])))
+                print("Total number of host units infected: {}".format(
+                    np.sum([(x.states["C"] + x.states["I"]) for x in self.all_cells])))
 
         return (self.all_hosts, self.all_cells, self.run_params)
 
