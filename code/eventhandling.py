@@ -119,10 +119,10 @@ class EventHandler:
             # Distribute rate changes to coupled cells
             self.distribute_infection_raster(host_id, all_hosts, all_cells)
 
-        self.parent_sim.run_params['all_events'].append(
-            (self.parent_sim.time, host_id, old_state, new_state))
+        # self.parent_sim.run_params['all_events'].append(
+        #     (self.parent_sim.time, host_id, old_state, new_state))
 
-        return (host_id, cell, old_state, new_state)
+        return (host_id, cell.cell_id, old_state, new_state)
 
     def do_event_inf_raster(self, cell_id, all_hosts, all_cells):
         """Carry out infection event in Raster model."""
@@ -156,8 +156,8 @@ class EventHandler:
             # Distribute rate changes to coupled cells
             self.distribute_infection_raster(host_id, all_hosts, all_cells)
 
-        self.parent_sim.run_params['all_events'].append(
-            (self.parent_sim.time, host_id, "S", new_state))
+        # self.parent_sim.run_params['all_events'].append(
+        #     (self.parent_sim.time, host_id, "S", new_state))
 
         return (host_id, cell_id, "S", new_state)
 
@@ -202,7 +202,14 @@ class EventHandler:
         if cell_id is None:
             self.rate_handler.insert_rate(host_id, 0.0, "Infection")
         else:
-            all_cells[cell_id].update(old_state, new_state)
+            cell = all_cells[cell_id]
+            nsus = cell.states["S"]
+            cell.update(old_state, new_state)
+            if old_state == "S":
+                old_inf_rate = self.rate_handler.get_rate(cell_id, "Infection")
+                new_inf_rate = old_inf_rate * ((nsus - 1) / nsus)
+                self.rate_handler.insert_rate(cell_id, new_inf_rate, "Infection")
+
 
         if old_state in "CI":
             # Distribute rate changes
@@ -211,8 +218,8 @@ class EventHandler:
             else:
                 self.distribute_removal_raster(host_id, all_hosts, all_cells)
 
-        self.parent_sim.run_params['all_events'].append(
-            (self.parent_sim.time, host_id, old_state, new_state))
+        # self.parent_sim.run_params['all_events'].append(
+        #     (self.parent_sim.time, host_id, old_state, new_state))
         # self.parent_sim.run_params['region_summary'][all_hosts[host_id].reg][old_state] -= 1
         # self.parent_sim.run_params['region_summary'][all_hosts[host_id].reg][new_state] += 1
 
