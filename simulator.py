@@ -280,7 +280,8 @@ class Simulator:
         # Set time until first intervention
         next_intervention_time = self.intervention_handler.next_intervention_time
         if self.params['RasterOutputFreq'] != 0:
-            outputdata.output_raster_data(self, time=self.time, iteration=iteration)
+            outputdata.output_raster_data(
+                self, time=self.time, iteration=iteration, states=self.params['RasterStatesOutput'])
             nextRasterDumpTime = self.time + self.params['RasterOutputFreq']
         else:
             nextRasterDumpTime = np.inf
@@ -294,29 +295,39 @@ class Simulator:
             else:
                 nextTime = self.time + (-1.0/totRate)*np.log(np.random.random_sample())
 
-            while np.minimum(nextTime, next_intervention_time) >= nextRasterDumpTime:
+            while np.minimum(nextTime, next_intervention_time) > nextRasterDumpTime:
                 if nextRasterDumpTime > self.params['FinalTime']:
                     break
                 self.time = nextRasterDumpTime
-                outputdata.output_raster_data(self, time=self.time, iteration=iteration)
+                outputdata.output_raster_data(self, time=self.time, iteration=iteration,
+                                              states=self.params['RasterStatesOutput'])
                 nextRasterDumpTime += self.params['RasterOutputFreq']
 
             if nextTime >= next_intervention_time and nextTime != np.inf:
                 if next_intervention_time > self.params['FinalTime']:
+                    while nextRasterDumpTime <= self.params['FinalTime']:
+                        self.time = nextRasterDumpTime
+                        outputdata.output_raster_data(self, time=self.time, iteration=iteration,
+                                                    states=self.params['RasterStatesOutput'])
+                        nextRasterDumpTime += self.params['RasterOutputFreq']
                     break
                 self.time = next_intervention_time
                 # carry out intervention update
-                print("HERE", next_intervention_time)
                 self.intervention_handler.update(self.all_hosts, self.time, self.all_cells)
                 next_intervention_time = self.intervention_handler.next_intervention_time
             else:
                 if nextTime > self.params['FinalTime']:
+                    while nextRasterDumpTime <= self.params['FinalTime']:
+                        self.time = nextRasterDumpTime
+                        outputdata.output_raster_data(self, time=self.time, iteration=iteration,
+                                                    states=self.params['RasterStatesOutput'])
+                        nextRasterDumpTime += self.params['RasterOutputFreq']
                     break
                 # Carry out event
                 self.time = nextTime
                 event = self.event_handler.do_event(event_type, hostID, self.all_hosts,
                                                     self.all_cells)
-                if self.params['UpdateOnAllEvents'] is True:
+                if (self.params['UpdateOnAllEvents'] is True) and (event is not None):
                     self.intervention_handler.update_on_event(event, self.all_hosts, self.time,
                                                               self.all_cells)
 
@@ -339,13 +350,15 @@ class Simulator:
         return run_data
 
 
-def run_epidemics(params, silent=False):
+def run_epidemics(params, silent=False, iteration_start=None):
+    if iteration_start is None:
+        iteration_start = 0
     all_data = []
     if params['SaveSetup']:
         run_sim = Simulator(params)
         run_sim.setup()
         run_sim.initialise(silent=silent)
-    for iteration in range(params['NIterations']):
+    for iteration in range(iteration_start, iteration_start+params['NIterations']):
         if not params['SaveSetup']:
             run_sim = Simulator(params)
             run_sim.setup(silent=silent)

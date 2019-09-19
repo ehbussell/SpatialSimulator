@@ -41,14 +41,14 @@ def output_all_run_data(parent_sim, all_hosts, all_cells, run_params, iteration=
     return return_data
 
 
-def output_raster_data(parent_sim, time=None, iteration=None):
+def output_raster_data(parent_sim, time=None, iteration=None, states=None):
     """Output current state raster"""
-
-    print("Starting raster output at time", time)
 
     all_cells = parent_sim.all_cells
     header = parent_sim.params['header']
-    states = list(parent_sim.params['Model']) + ["Culled"]
+
+    if states is None:
+        states = list(parent_sim.params['Model']) + ["Culled"]
 
     output_stub = parent_sim.params['RasterFileStub']
 
@@ -80,8 +80,6 @@ def output_raster_data(parent_sim, time=None, iteration=None):
         )
 
         raster.to_file(output_stub + iterstub + "_" + state + timestub + ".txt")
-    
-    print("Finsihed raster output at time", time)
 
 def output_data_hosts(all_hosts, all_cells, params, file_stub="output", iteration=0):
     """Output state transition times for each host."""
