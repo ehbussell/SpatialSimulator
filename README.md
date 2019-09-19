@@ -2,7 +2,7 @@
 
 ## Project Description
 
-Project creating individual based simulator for running epidemics.  Also investigating possible rate handling structures and optimisation.
+Project creating individual based simulator for running epidemics. Can handle individual-based and raster-based simulations.
 
 ## Basic Usage
 For help on command line arguments, run `python .\simulator.py -h`.
@@ -29,33 +29,4 @@ For a simple example see the example/ folder.
 
 ## To Do List
 1. Documentation
-  * Basic usage instructions within README
-  * Example folder containing simple example with all necessary config files
-  * Sphinx documentation
 1. Testing
-  * Fix calls to old simulator references
-  * Implement unit tests
-  * Make all tests part of unittest module
-  * Test intervention handling
-
-
-## Major Change Log
-*(For more details see SVN log)*
-
-### 20/06/2017
-Major changes to handling of interventions.  Each intervention script now provides an Intervention class with action and update methods, and optionally an output method giving a pandas data frame.  The class must also contain the following members:
-* update_freq giving the frequency at which updates should be carried out
-* type CONTINUOUS if continuous rates are required
-* rate_size size of rate structure required if type is CONTINUOUS
-
-### 13/06/2017
-Log file now produced on output.  \_\_init\_\_ files so that functions as project.  __Note this will have broken some previous imports.__  Changed functionality of config parser so can take a string as well as a file.  Added utilities for reading output files and parameters.  BUGFIX in creating hosts - was not adding hostID.
-
-### 12/06/2017
-Host input changed significantly.  Now takes multiple files: a hosts.txt file detailing host positions, a hosts_init.txt file giving initial states, and optionally a hosts_regions.txt file giving the region for each host.  Also added some utilities for creating these files.
-
-### 08/06/2017
-Updated output functions - creates dataframe and then saves to csv if the key 'OutputFiles' is True.  Also handles file output stub properly.
-
-### 07/06/2017
-Added main function to simulator module - this is now what is called if invoked from the command line.  This way when invoked from within python, functionality is the same.  Have also implemented return of data when invoked from python.  Have used pandas data frames to hold data.
