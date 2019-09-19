@@ -4,6 +4,7 @@ import pdb
 import importlib
 import pandas as pd
 import numpy as np
+import time as mtime
 
 
 class InterventionHandler:
@@ -32,13 +33,13 @@ class InterventionHandler:
                     intervention_freqs = [None]*len(intervention_scripts)
                 else:
                     intervention_freqs = [float(x) for x in intervention_freqs.split(",")]
-                zipped_data = zip(intervention_scripts, intervention_freqs, intervention_options)
-                for script, freq, options in zipped_data:
+                zipped_data = zip(intervention_scripts, intervention_freqs)
+                for script, freq in zipped_data:
                     intervention_module = importlib.import_module(script)
                     intervention_module = importlib.reload(intervention_module)
                     self.interventions.append(intervention_module.Intervention(
                         freq, self.parent_sim.params['init_hosts'],
-                        self.parent_sim.params['init_cells']), options)
+                        self.parent_sim.params['init_cells'], intervention_options))
 
             elif isinstance(scripts, list):
                 if intervention_freqs is None:

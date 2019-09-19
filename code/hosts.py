@@ -138,6 +138,8 @@ def read_host_files(host_pos_files, init_cond_files, region_files, states, sim_t
             for col in range(host_raster.header_vals['ncols']):
                 nhosts = host_raster.array[row, col]
                 if nhosts <= 0:
+                    all_cells.append(Cell((row, col), [], cell_id))
+                    cell_id += 1
                     continue
                 hosts = []
                 x = host_raster.header_vals['xllcorner'] + (col * cellsize) + (cellsize / 2)
@@ -151,7 +153,7 @@ def read_host_files(host_pos_files, init_cond_files, region_files, states, sim_t
                         host_id += 1
                         hosts.append(host)
                         all_hosts.append(host)
-                    
+
                 if culled_raster is not None:
                     nhosts_state = int(culled_raster.array[row, col])
                     for j in range(nhosts_state):
@@ -183,7 +185,7 @@ def read_sus_inf_files(all_cells, header, sus_file, inf_file, sim_type="INDIVIDU
         else:
             try:
                 sus_raster = raster_tools.RasterData.from_file(sus_file)
-            except FileNotFoundError:
+            except (FileNotFoundError, TypeError):
                 sus_raster = raster_tools.RasterData(
                     shape=(header['nrows'], header['ncols']),
                     llcorner=(header['xllcorner'], header['yllcorner']),
@@ -197,7 +199,7 @@ def read_sus_inf_files(all_cells, header, sus_file, inf_file, sim_type="INDIVIDU
         else:
             try:
                 inf_raster = raster_tools.RasterData.from_file(inf_file)
-            except FileNotFoundError:
+            except (FileNotFoundError, TypeError):
                 inf_raster = raster_tools.RasterData(
                     shape=(header['nrows'], header['ncols']),
                     llcorner=(header['xllcorner'], header['yllcorner']),

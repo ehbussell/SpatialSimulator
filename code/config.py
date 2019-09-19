@@ -57,6 +57,7 @@ default_config = OrderedDict([
                          "If False only python objects are returned.", bool)),
         ('OutputFileStub', (False, "output", "File path stub for output files", str)),
         ('RasterFileStub', (False, "raster_output", "File path stub for output raster files", str)),
+        ('RasterStatesOutput', (False, None, "States to output rasters of", str)),
     ])),
     ('Optimisation', OrderedDict([
         ('SaveSetup', (False, True, "Whether or not to save the initial rates and states to re-use."
@@ -80,6 +81,8 @@ default_config = OrderedDict([
                                            "often to update each intervention module.", str)),
         ('UpdateOnAllEvents', (False, False, "Whether or not to update the intervention classes "
                                "after every event.", bool)),
+        ('InterventionOptions', (False, None, "Comma separated list of options to pass to "
+                                           "intervention module.", str)),
     ])),
 ])
 
